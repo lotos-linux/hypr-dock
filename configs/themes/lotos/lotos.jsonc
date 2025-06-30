@@ -3,5 +3,18 @@
     "Blur": "true",
 
     // Distance between elements (px) (default 9)
-    "Spacing": 5
+    "Spacing": 5,
+
+    // Preview settings
+    "PreviewStyle": {
+        // Size (px) (default 200)
+        "Size": 200,
+        /*
+          For "Position": "bottom"/"top" - height
+          For "Position": "left"/"right" - width
+        */
+
+        // Border-radius (px) (default 10)
+        "BorderRadius": 10
+    }
 }

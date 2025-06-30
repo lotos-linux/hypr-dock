@@ -2,6 +2,7 @@ package state
 
 import (
 	"hypr-dock/internal/itemsctl"
+	pvstate "hypr-dock/internal/previewstate"
 	"hypr-dock/internal/settings"
 	"sync"
 
@@ -21,12 +22,14 @@ type State struct {
 	PreventHide    bool
 	List           *itemsctl.List
 	Special        bool
+	pvstate        *pvstate.PVState
 	mu             sync.Mutex
 }
 
 func New() *State {
 	return &State{
-		List: itemsctl.New(),
+		List:    itemsctl.New(),
+		pvstate: pvstate.New(),
 	}
 }
 
@@ -163,4 +166,11 @@ func (s *State) GetSpecial() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.Special
+}
+
+func (s *State) GetPVState() *pvstate.PVState {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.pvstate
 }

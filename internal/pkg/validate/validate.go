@@ -5,6 +5,11 @@ import (
 	"slices"
 )
 
+func Preview(value string, runtime bool) bool {
+	validList := []string{"live", "static", "none"}
+	return Allowed("Preview", value, validList, runtime, true)
+}
+
 func Layer(value string, runtime bool) bool {
 	validList := []string{"auto", "exclusive-top", "exclusive-bottom", "background", "bottom", "top", "overlay"}
 	return Allowed("Layer", value, validList, runtime, true)

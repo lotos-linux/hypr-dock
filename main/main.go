@@ -68,7 +68,14 @@ func main() {
 	window.ShowAll()
 
 	// post
-	layering.InitDetectArea(appState)
+
+	// actions, err := desktop.GetAppActions("firefox")
+	// if err == nil {
+	// 	for _, action := range actions {
+	// 		fmt.Printf("Name: %s, Exec: %s \n", action.Name, action.Exec)
+	// 	}
+	// }
+
 	hyprEvents.Init(appState)
 
 	// end

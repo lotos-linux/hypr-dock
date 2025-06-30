@@ -68,6 +68,7 @@ func Init() (Settings, error) {
 	if themeConfig != nil {
 		settings.Blur = themeConfig.Blur
 		settings.Spacing = themeConfig.Spacing
+		settings.PreviewStyle = themeConfig.PreviewStyle
 	}
 
 	if settings.Blur == "true" {
@@ -114,5 +115,5 @@ func expandPath(path string) string {
 
 func enableBlur() {
 	ipc.Hyprctl("keyword layerrule blur,hypr-dock")
-	ipc.Hyprctl("keyword layerrule ignorealpha 0.4,hypr-dock")
+	ipc.Hyprctl("keyword layerrule ignorealpha 0.1,hypr-dock")
 }

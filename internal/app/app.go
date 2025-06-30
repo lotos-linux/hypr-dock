@@ -6,14 +6,12 @@ import (
 	"log"
 	"slices"
 
-	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
 
+	"hypr-dock/internal/btnctl"
 	"hypr-dock/internal/hypr/hyprOpt"
 	"hypr-dock/internal/item"
-	"hypr-dock/internal/layering"
 	"hypr-dock/internal/pkg/utils"
-	"hypr-dock/internal/settings"
 	"hypr-dock/internal/state"
 	"hypr-dock/pkg/ipc"
 )
@@ -81,7 +79,7 @@ func InitNewItemInClass(className string, appState *state.State) {
 		return
 	}
 
-	appItemEventHandler(item, appState.GetSettings(), appState)
+	btnctl.Dispatch(item, appState)
 
 	item.List = list.GetMap()
 	item.PinnedList = appState.GetPinned()
@@ -89,51 +87,6 @@ func InitNewItemInClass(className string, appState *state.State) {
 
 	appState.GetItemsBox().Add(item.ButtonBox)
 	appState.GetWindow().ShowAll()
-}
-
-func appItemEventHandler(item *item.Item, settings settings.Settings, appState *state.State) {
-	item.Button.Connect("button-release-event", func(button *gtk.Button, e *gdk.Event) {
-		event := gdk.EventButtonNewFromEvent(e)
-		if event.Button() == 3 {
-			menu, err := item.ContextMenu(settings)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			menu.PopupAtWidget(item.Button, gdk.GDK_GRAVITY_NORTH, gdk.GDK_GRAVITY_SOUTH, nil)
-			menu.Connect("deactivate", func() {
-				dispather(appState, item.Button)
-			})
-
-			return
-		}
-
-		if item.Instances == 0 {
-			utils.Launch(item.DesktopData.Exec)
-		}
-		if item.Instances == 1 {
-			ipc.Hyprctl("dispatch focuswindow address:" + item.Windows[0]["Address"])
-		}
-		if item.Instances > 1 {
-			menu, err := item.WindowsMenu()
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			menu.PopupAtWidget(item.Button, gdk.GDK_GRAVITY_NORTH, gdk.GDK_GRAVITY_SOUTH, nil)
-			menu.Connect("deactivate", func() {
-				dispather(appState, item.Button)
-			})
-		}
-	})
-}
-
-func dispather(appState *state.State, btn *gtk.Button) {
-	window := appState.GetWindow()
-	btn.SetStateFlags(gtk.STATE_FLAG_NORMAL, true)
-	layering.DispathLeaveEvent(window, nil, appState)
 }
 
 func RemoveApp(address string, appState *state.State) {

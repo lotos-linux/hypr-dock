@@ -14,3 +14,29 @@ button {
   border-radius: 12px;
   border: none;
 }
+
+#menu-item {
+  padding: 3px;
+  padding-left: 0;
+}
+
+
+
+/* Hack */
+/* stackoverflow.com/questions/48452717/how-to-replace-the-deprecated-gtk3-gtkimagemenuitem */
+#hbox {
+  margin-left: -23px;
+}
+
+menu {
+  /* background-color: transparent; */
+  border: none;
+  box-shadow: none;
+  outline: none;
+  /* -gtk-reparent-on-realize: false; */
+  background-image: none;
+}
+
+menuitem {
+  padding: 3px 6px;
+}

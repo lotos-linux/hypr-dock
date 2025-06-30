@@ -1,9 +1,11 @@
 package item
 
 import (
+	"errors"
 	"log"
 
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/gotk3/gotk3/pango"
 
 	"hypr-dock/internal/pkg/desktop"
 	"hypr-dock/internal/pkg/utils"
@@ -33,11 +35,41 @@ func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
 		log.Println(err)
 	}
 
-	desktopData := desktop.New(item.ClassName)
+	desktopData := item.DesktopData
 
 	AddWindowsItemToMenu(menu, item.Windows, desktopData)
 
 	if item.Instances != 0 {
+		separator, err := gtk.SeparatorMenuItemNew()
+		if err == nil {
+			menu.Append(separator)
+		} else {
+			log.Println(err)
+		}
+	}
+
+	if item.Actions != nil {
+		for _, action := range item.Actions {
+			exec := func() {
+				utils.Launch(action.Exec)
+			}
+
+			var actionMenuItem *gtk.MenuItem
+			var err error
+
+			if action.Icon == "" {
+				actionMenuItem, err = BuildContextItem(action.Name, exec)
+			} else {
+				actionMenuItem, err = BuildContextItem(action.Name, exec, action.Icon)
+			}
+
+			if err == nil {
+				menu.Append(actionMenuItem)
+			} else {
+				log.Println(err)
+			}
+		}
+
 		separator, err := gtk.SeparatorMenuItemNew()
 		if err == nil {
 			menu.Append(separator)
@@ -58,6 +90,17 @@ func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
 		menu.Append(pinMenuItem)
 	} else {
 		log.Println(err)
+	}
+
+	if item.Instances == 1 {
+		closeMenuItem, err := BuildContextItem("Close", func() {
+			ipc.Hyprctl("dispatch closewindow address:" + item.Windows[0]["Address"])
+		}, "close-symbolic")
+		if err == nil {
+			menu.Append(closeMenuItem)
+		} else {
+			log.Println(err)
+		}
 	}
 
 	menu.SetName("context-menu")
@@ -82,14 +125,18 @@ func AddWindowsItemToMenu(menu *gtk.Menu, windows []map[string]string, desktopDa
 }
 
 func BuildLaunchMenuItem(item *Item, exec string) (*gtk.MenuItem, error) {
-	labelText := "New window"
-	if item.Instances == 0 {
-		labelText = "Open"
+	if item.Instances != 0 && item.DesktopData.SingleWindow {
+		return nil, errors.New("")
+	}
+
+	labelText := item.DesktopData.Name
+	if item.Instances != 0 {
+		labelText = "New Window - " + labelText
 	}
 
 	launchMenuItem, err := BuildContextItem(labelText, func() {
 		utils.Launch(exec)
-	})
+	}, item.DesktopData.Icon)
 
 	if err != nil {
 		return nil, err
@@ -116,36 +163,48 @@ func BuildPinMenuItem(item *Item, settings settings.Settings) (*gtk.MenuItem, er
 }
 
 func BuildContextItem(labelText string, connectFunc func(), iconName ...string) (*gtk.MenuItem, error) {
+	size := 16
+	spacing := 6
+
 	menuItem, err := gtk.MenuItemNew()
 	if err != nil {
 		return nil, err
 	}
 
-	hbox, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 6)
+	menuItem.SetName("menu-item")
+
+	hbox, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, spacing)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(iconName) > 0 {
-		icon, err := utils.CreateImage(iconName[0], 16)
-		if err == nil {
-			hbox.Add(icon)
-		}
-	}
+	hbox.SetName("hbox")
 
 	label, err := gtk.LabelNew(labelText)
 	if err != nil {
 		return nil, err
 	}
 
+	label.SetEllipsize(pango.ELLIPSIZE_END)
+	label.SetMaxWidthChars(30)
+
+	if len(iconName) > 0 {
+		icon, err := utils.CreateImage(iconName[0], size)
+		if err == nil {
+			hbox.Add(icon)
+		}
+	} else {
+		label.SetMarginStart(size + spacing)
+	}
+
 	if connectFunc != nil {
 		menuItem.Connect("activate", func() {
-			// dispather()
 			connectFunc()
 		})
 	}
 
 	hbox.Add(label)
+	menuItem.SetReserveIndicator(false)
 	menuItem.Add(hbox)
 
 	return menuItem, nil

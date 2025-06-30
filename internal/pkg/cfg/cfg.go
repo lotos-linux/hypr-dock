@@ -3,30 +3,45 @@ package cfg
 import (
 	"hypr-dock/internal/pkg/utils"
 	"hypr-dock/internal/pkg/validate"
-	"io"
 	"log"
 	"os"
 
-	"github.com/akshaybharambe14/go-jsonc"
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
-	// "github.com/tidwall/sjson"
+	"github.com/tailscale/hujson"
 )
 
 type Config struct {
-	CurrentTheme  string
-	IconSize      int
-	Layer         string
-	Position      string
-	Blur          string
-	Spacing       int
-	SystemGapUsed string
-	Margin        int
+	CurrentTheme    string
+	IconSize        int
+	Layer           string
+	Position        string
+	Blur            string
+	Spacing         int
+	SystemGapUsed   string
+	Margin          int
+	ContextPos      int
+	Preview         string
+	PreviewAdvanced struct {
+		FPS        int
+		BufferSize int
+		ShowDelay  int
+		HideDelay  int
+		MoveDelay  int
+	}
+	PreviewStyle struct {
+		Size         int
+		BorderRadius int
+	}
 }
 
 type ThemeConfig struct {
-	Blur    string
-	Spacing int
+	Blur         string
+	Spacing      int
+	PreviewStyle struct {
+		Size         int
+		BorderRadius int
+	}
 }
 
 type ItemList struct {
@@ -43,6 +58,27 @@ func GetDefaultConfig() Config {
 		Spacing:       8,
 		SystemGapUsed: "true",
 		Margin:        8,
+		ContextPos:    5,
+		Preview:       "none",
+		PreviewAdvanced: struct {
+			FPS        int
+			BufferSize int
+			ShowDelay  int
+			HideDelay  int
+			MoveDelay  int
+		}{
+			FPS:        30,
+			BufferSize: 5,
+			ShowDelay:  500,
+			HideDelay:  500,
+		},
+		PreviewStyle: struct {
+			Size         int
+			BorderRadius int
+		}{
+			Size:         200,
+			BorderRadius: 0,
+		},
 	}
 }
 
@@ -78,6 +114,18 @@ func ReadConfig(jsoncFile string, themesDir string) Config {
 		config.SystemGapUsed = GetDefaultConfig().SystemGapUsed
 	}
 
+	if !validate.Preview(config.Preview, false) {
+		config.Preview = GetDefaultConfig().Preview
+	}
+
+	if config.PreviewAdvanced.FPS == 0 {
+		config.PreviewAdvanced.FPS = GetDefaultConfig().PreviewAdvanced.FPS
+	}
+
+	if config.PreviewAdvanced.BufferSize < 1 || config.PreviewAdvanced.BufferSize > 20 {
+		config.PreviewAdvanced.BufferSize = GetDefaultConfig().PreviewAdvanced.BufferSize
+	}
+
 	if config.Spacing < 1 {
 		config.Spacing = GetDefaultConfig().Spacing
 	}
@@ -108,6 +156,10 @@ func ReadTheme(jsoncFile string, config Config) *ThemeConfig {
 		themeConfig.Spacing = config.Spacing
 	}
 
+	if themeConfig.PreviewStyle.Size < 20 {
+		themeConfig.PreviewStyle.Size = GetDefaultConfig().PreviewStyle.Size
+	}
+
 	return &themeConfig
 }
 
@@ -128,19 +180,18 @@ func ReadItemList(jsonFile string) []string {
 }
 
 func ReadJsonc(jsoncFile string, v interface{}) error {
-	file, err := os.Open(jsoncFile)
+	file, err := os.ReadFile(jsoncFile)
 	if err != nil {
 		return errors.Wrapf(err, "file %q not found", jsoncFile)
 	}
-	defer file.Close()
 
-	decoder := jsonc.NewDecoder(file)
-	res, err := io.ReadAll(decoder)
+	// Парсим JSONC
+	standardized, err := hujson.Standardize(file)
 	if err != nil {
-		return errors.Wrapf(err, "file %q. io.ReadAll error", jsoncFile)
+		return errors.Wrapf(err, "failed to standardize JSONC")
 	}
 
-	if err = json.Unmarshal(res, &v); err != nil {
+	if err := json.Unmarshal(standardized, &v); err != nil {
 		return errors.Wrapf(err, "file %q has a syntax error", jsoncFile)
 	}
 

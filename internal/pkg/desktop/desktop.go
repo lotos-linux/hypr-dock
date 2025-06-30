@@ -11,9 +11,10 @@ import (
 )
 
 type Desktop struct {
-	Name string
-	Icon string
-	Exec string
+	Name         string
+	Icon         string
+	Exec         string
+	SingleWindow bool
 }
 
 var desktopDirs = GetAppDirs()
@@ -23,17 +24,24 @@ func New(className string) *Desktop {
 	if err != nil {
 		log.Println(err)
 		return &Desktop{
-			Name: "Untitle",
-			Icon: "",
-			Exec: "",
+			Name:         "Untitle",
+			Icon:         "",
+			Exec:         "",
+			SingleWindow: false,
 		}
 	}
 
 	return &Desktop{
-		Name: GetDesktopOption(allData, "Name"),
-		Icon: GetDesktopOption(allData, "Icon"),
-		Exec: GetDesktopOption(allData, "Exec"),
+		Name:         GetDesktopOption(allData, "Name"),
+		Icon:         GetDesktopOption(allData, "Icon"),
+		Exec:         GetDesktopOption(allData, "Exec"),
+		SingleWindow: GetSingleWindow(allData),
 	}
+}
+
+func GetSingleWindow(allData []string) bool {
+	val := GetDesktopOption(allData, "SingleMainWindow")
+	return val == "true"
 }
 
 func SearchDesktopFile(className string) string {

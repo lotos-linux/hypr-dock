@@ -4,6 +4,7 @@ import (
 	"log"
 	"slices"
 
+	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
 
 	"hypr-dock/internal/pkg/cfg"
@@ -19,6 +20,7 @@ type Item struct {
 	Instances      int
 	Windows        []map[string]string
 	DesktopData    *desktop.Desktop
+	Actions        []*desktop.Action
 	ClassName      string
 	Button         *gtk.Button
 	ButtonBox      *gtk.Box
@@ -30,9 +32,22 @@ type Item struct {
 func New(className string, settings settings.Settings) (*Item, error) {
 	desktopData := desktop.New(className)
 
-	item, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
+	orientation := gtk.ORIENTATION_VERTICAL
+	switch settings.Position {
+	case "left", "right":
+		orientation = gtk.ORIENTATION_HORIZONTAL
+	}
+
+	item, err := gtk.BoxNew(orientation, 0)
 	if err != nil {
 		return nil, err
+	}
+
+	indicatorImage, err := indicator.New(0, settings)
+	if err == nil {
+		appendInducator(item, indicatorImage, settings.Position)
+	} else {
+		log.Println(err)
 	}
 
 	button, err := gtk.ButtonNew()
@@ -52,10 +67,8 @@ func New(className string, settings settings.Settings) (*Item, error) {
 		log.Println(err)
 	}
 
-	indicatorImage, err := indicator.New(0, settings)
-	if err == nil {
-		item.Add(indicatorImage)
-	} else {
+	actions, err := desktop.GetAppActions(className)
+	if err != nil {
 		log.Println(err)
 	}
 
@@ -64,6 +77,7 @@ func New(className string, settings settings.Settings) (*Item, error) {
 		Button:         button,
 		ButtonBox:      item,
 		DesktopData:    desktopData,
+		Actions:        actions,
 		Instances:      0,
 		ClassName:      className,
 		List:           nil,
@@ -78,7 +92,8 @@ func (item *Item) RemoveLastInstance(windowIndex int, settings settings.Settings
 
 	newImage, err := indicator.New(item.Instances-1, settings)
 	if err == nil {
-		item.ButtonBox.Add(newImage)
+		// item.ButtonBox.Add(newImage)
+		appendInducator(item.ButtonBox, newImage, settings.Position)
 	}
 
 	item.Instances -= 1
@@ -98,7 +113,8 @@ func (item *Item) UpdateState(ipcClient ipc.Client, settings settings.Settings) 
 
 	indicatorImage, err := indicator.New(item.Instances+1, settings)
 	if err == nil {
-		item.ButtonBox.Add(indicatorImage)
+		// item.ButtonBox.Add(indicatorImage)
+		appendInducator(item.ButtonBox, indicatorImage, settings.Position)
 	}
 
 	item.Windows = append(item.Windows, appWindow)
@@ -135,4 +151,24 @@ func (item *Item) TogglePin(settings settings.Settings) {
 func (item *Item) Remove() {
 	item.ButtonBox.Destroy()
 	delete(item.List, item.ClassName)
+}
+
+func appendInducator(parent *gtk.Box, child *gtk.Image, pos string) {
+	switch pos {
+	case "left", "right":
+		buf := child.GetPixbuf()
+		newBuf, err := buf.RotateSimple(gdk.PIXBUF_ROTATE_COUNTERCLOCKWISE)
+		if err != nil {
+			return
+		}
+		child.SetFromPixbuf(newBuf)
+	}
+
+	switch pos {
+	case "left", "top":
+		parent.PackStart(child, false, false, 0)
+		parent.ReorderChild(child, 0)
+	case "bottom", "right":
+		parent.PackEnd(child, false, false, 0)
+	}
 }

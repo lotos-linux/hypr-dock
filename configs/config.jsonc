@@ -5,7 +5,7 @@
     "IconSize": 23,
 
     // Window overlay layer height (auto, exclusive-top, exclusive-bottom, background, bottom, top, overlay) (default "auto")
-    "Layer": "auto",
+    "Layer": "exclusive-bottom",
 
     // Window position on screen (top, bottom, left, right) (default "bottom")
     "Position": "bottom",
@@ -14,5 +14,37 @@
     "SystemGapUsed": "true",
 
     // Indent from the edge of the screen (px) (default 8)
-    "Margin": 8
+    "Margin": 8,
+
+    // Distance of the context menu from the window (px) (default 0)
+    "ContextPos": 5,
+
+    
+    // Window thumbnail mode selection (none, live, static) (default "none")
+    "Preview": "live",
+    /*
+      "none"   - disabled (text menus)
+      "live"   - window streaming
+      "static" - last window frame
+      
+      !WARNING! 
+      BY SETTING "Preview" TO "live" OR "static", YOU AGREE TO THE CAPTURE 
+      OF WINDOW CONTENTS.
+      THE "HYPR-DOCK" PROGRAM DOES NOT COLLECT, STORE, OR TRANSMIT ANY DATA.
+      WINDOW CAPTURE OCCURS ONLY FOR THE DURATION OF THE THUMBNAIL DISPLAY!
+      
+      Source code: https://github.com/lotos-linux/hypr-dock
+    */
+
+    "PreviewAdvanced": {
+      // Live preview fps (0 - ∞) (default 30)
+      "FPS": 30,
+
+      // Live preview bufferSize (1 - 20) (default 5)
+      "BufferSize": 5,
+
+      "ShowDelay": 500,
+      "HideDelay": 500,
+      "MoveDelay": 300
+    }
 }

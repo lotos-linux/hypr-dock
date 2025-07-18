@@ -72,7 +72,9 @@ func New(className string, settings settings.Settings) (*Item, error) {
 }
 
 func (item *Item) RemoveLastInstance(windowIndex int, settings settings.Settings) {
-	item.IndicatorImage.Destroy()
+	if item.IndicatorImage != nil {
+		item.IndicatorImage.Destroy()
+	}
 
 	newImage, err := indicator.New(item.Instances-1, settings)
 	if err == nil {

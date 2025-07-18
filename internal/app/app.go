@@ -137,7 +137,7 @@ func dispather(appState *state.State, btn *gtk.Button) {
 }
 
 func RemoveApp(address string, appState *state.State) {
-	item, windowIndex, err := searhByAddress(address, appState)
+	item, windowIndex, err := searchByAddress(address, appState)
 	if err != nil {
 		log.Println(err)
 		return
@@ -154,7 +154,7 @@ func RemoveApp(address string, appState *state.State) {
 	appState.GetWindow().ShowAll()
 }
 
-func searhByAddress(address string, appState *state.State) (*item.Item, int, error) {
+func searchByAddress(address string, appState *state.State) (*item.Item, int, error) {
 	for _, item := range appState.GetList().GetMap() {
 		for windowIndex, window := range item.Windows {
 			if window["Address"] == address {

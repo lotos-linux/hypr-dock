@@ -116,4 +116,7 @@ func expandPath(path string) string {
 func enableBlur() {
 	ipc.Hyprctl("keyword layerrule blur,hypr-dock")
 	ipc.Hyprctl("keyword layerrule ignorealpha 0.1,hypr-dock")
+
+	ipc.Hyprctl("keyword layerrule blur,dock-popup")
+	ipc.Hyprctl("keyword layerrule ignorealpha 0.1,dock-popup")
 }

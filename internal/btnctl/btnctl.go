@@ -8,6 +8,7 @@ import (
 	"log"
 
 	"github.com/gotk3/gotk3/gdk"
+	"github.com/gotk3/gotk3/glib"
 )
 
 func Dispatch(item *item.Item, appState *state.State) {
@@ -23,25 +24,37 @@ func Dispatch(item *item.Item, appState *state.State) {
 
 func previewControl(item *item.Item, appState *state.State) {
 	settings := appState.GetSettings()
-	pvState := appState.GetPVState()
-	pv := pvState.GetPV()
-	showTimer := pvState.GetShowTimer()
-	hideTimer := pvState.GetHideTimer()
-	moveTimer := pvState.GetMoveTimer()
+	pv := appState.GetPV()
+	showTimer := pv.GetShowTimer()
+	hideTimer := pv.GetHideTimer()
+	moveTimer := pv.GetMoveTimer()
 
 	show := func() {
-		pv.Show(item, settings)
-		pvState.SetActive(true)
+		glib.IdleAdd(func() {
+			pv.Show(item, settings)
+		})
+		pv.SetActive(true)
 	}
 
 	hide := func() {
-		pv.Hide(item, settings)
-		pvState.SetActive(false)
+		glib.IdleAdd(func() {
+			pv.Hide()
+		})
+		pv.SetActive(false)
 	}
 
 	move := func() {
-		pv.Move(item, settings)
+		glib.IdleAdd(func() {
+			pv.Change(item, settings)
+		})
 	}
+
+	ipc.AddEventListener("hd>>open-context", func(e string) {
+		showTimer.Stop()
+		if pv.GetActive() {
+			hideTimer.Run(0, hide)
+		}
+	}, true)
 
 	leftClick(item.Button, func(e *gdk.Event) {
 		if item.Instances == 0 {
@@ -49,10 +62,13 @@ func previewControl(item *item.Item, appState *state.State) {
 		}
 		if item.Instances == 1 {
 			ipc.Hyprctl("dispatch focuswindow address:" + item.Windows[0]["Address"])
+			ipc.DispatchEvent("hd>>focus-window")
 		}
 		if item.Instances > 1 {
-			showTimer.Run(0, show)
-			pvState.SetCurrentClass(item.ClassName)
+			if !pv.GetActive() {
+				showTimer.Run(0, show)
+				pv.SetCurrentClass(item.ClassName)
+			}
 		}
 	})
 
@@ -63,16 +79,17 @@ func previewControl(item *item.Item, appState *state.State) {
 
 		hideTimer.Stop()
 
-		if pvState.GetActive() && pvState.HasClassChanged(item.ClassName) {
+		if pv.GetActive() && pv.HasClassChanged(item.ClassName) {
+			// fmt.Println("if true")
 			moveTimer.Stop()
 			moveTimer.Run(settings.PreviewAdvanced.MoveDelay, move)
-			pvState.SetCurrentClass(item.ClassName)
+			pv.SetCurrentClass(item.ClassName)
 			return
 		}
 
-		if !pvState.GetActive() {
+		if !pv.GetActive() {
 			showTimer.Run(settings.PreviewAdvanced.ShowDelay, show)
-			pvState.SetCurrentClass(item.ClassName)
+			pv.SetCurrentClass(item.ClassName)
 		}
 	})
 
@@ -82,7 +99,7 @@ func previewControl(item *item.Item, appState *state.State) {
 		}
 
 		showTimer.Stop()
-		if pvState.GetActive() {
+		if pv.GetActive() {
 			hideTimer.Run(settings.PreviewAdvanced.HideDelay, hide)
 		}
 	})

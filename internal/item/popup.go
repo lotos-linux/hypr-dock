@@ -2,6 +2,7 @@ package item
 
 import (
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/gotk3/gotk3/gtk"
@@ -179,6 +180,9 @@ func BuildContextItem(labelText string, connectFunc func(), iconName ...string) 
 	}
 
 	hbox.SetName("hbox")
+	/* Hack (HELP ME)*/
+	/* stackoverflow.com/questions/48452717/how-to-replace-the-deprecated-gtk3-gtkimagemenuitem */
+	utils.AddStyle(hbox, fmt.Sprintf("#hbox {margin-left: %dpx;}", 0-(size+spacing)))
 
 	label, err := gtk.LabelNew(labelText)
 	if err != nil {

@@ -60,7 +60,27 @@ func New(className string, settings settings.Settings) (*Item, error) {
 		}
 
 		button.SetName(className)
-		button.SetTooltipText(desktopData.Name)
+		// button.SetTooltipText(desktopData.Name)
+
+		display, err := gdk.DisplayGetDefault()
+		if err == nil {
+			pointer, _ := gdk.CursorNewFromName(display, "pointer")
+			arrow, _ := gdk.CursorNewFromName(display, "default")
+
+			button.Connect("enter-notify-event", func() {
+				win, _ := button.GetWindow()
+				if win != nil {
+					win.SetCursor(pointer)
+				}
+			})
+
+			button.Connect("leave-notify-event", func() {
+				win, _ := button.GetWindow()
+				if win != nil {
+					win.SetCursor(arrow)
+				}
+			})
+		}
 
 		item.Add(button)
 	} else {

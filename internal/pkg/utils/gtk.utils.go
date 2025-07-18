@@ -53,6 +53,27 @@ func CreateImageFromPixbuf(pixbuf *gdk.Pixbuf) *gtk.Image {
 	return image
 }
 
+func AddStyle(widget gtk.IWidget, style string) (*gtk.CssProvider, error) {
+	provider, err := gtk.CssProviderNew()
+	if err != nil {
+		return nil, err
+	}
+
+	err = provider.LoadFromData(style)
+	if err != nil {
+		return nil, err
+	}
+
+	context, err := widget.ToWidget().GetStyleContext()
+	if err != nil {
+		return nil, err
+	}
+
+	context.AddProvider(provider, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+	return provider, nil
+}
+
 func AddCssProvider(cssFile string) error {
 	cssProvider, err := gtk.CssProviderNew()
 	if err != nil {

@@ -32,6 +32,7 @@ type Config struct {
 	PreviewStyle struct {
 		Size         int
 		BorderRadius int
+		Spacing      int
 	}
 }
 
@@ -41,6 +42,7 @@ type ThemeConfig struct {
 	PreviewStyle struct {
 		Size         int
 		BorderRadius int
+		Spacing      int
 	}
 }
 
@@ -75,9 +77,11 @@ func GetDefaultConfig() Config {
 		PreviewStyle: struct {
 			Size         int
 			BorderRadius int
+			Spacing      int
 		}{
-			Size:         200,
+			Size:         120,
 			BorderRadius: 0,
+			Spacing:      10,
 		},
 	}
 }

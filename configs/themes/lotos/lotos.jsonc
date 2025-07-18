@@ -7,14 +7,12 @@
 
     // Preview settings
     "PreviewStyle": {
-        // Size (px) (default 200)
-        "Size": 200,
-        /*
-          For "Position": "bottom"/"top" - height
-          For "Position": "left"/"right" - width
-        */
+        // Size (px) (default 120)
+        "Size": 120,
 
-        // Border-radius (px) (default 10)
-        "BorderRadius": 10
+        // Border-radius (px) (default 0)
+        "BorderRadius": 0,
+
+        "Spacing": 10
     }
 }

@@ -117,6 +117,11 @@ func (s *Stream) Start(fps int, buferSize ...int) error {
 					return
 				}
 
+				if s == nil {
+					app.Close()
+					return
+				}
+
 				if s.scaleMode != nil {
 					pixbuf, err = s.scale(pixbuf)
 					if err != nil {

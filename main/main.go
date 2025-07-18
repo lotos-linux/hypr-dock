@@ -43,8 +43,7 @@ func main() {
 
 	gtk.Init(nil)
 
-	appState := state.New()
-	appState.SetSettings(settings)
+	appState := state.New(settings)
 
 	window, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {

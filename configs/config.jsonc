@@ -21,11 +21,11 @@
 
     
     // Window thumbnail mode selection (none, live, static) (default "none")
-    "Preview": "live",
+    "Preview": "static",
     /*
       "none"   - disabled (text menus)
-      "live"   - window streaming
-      "static" - last window frame
+      "live"   - window streaming (unstable) !EXPEREMENTAL!
+      "static" - last window frame (stable)
       
       !WARNING! 
       BY SETTING "Preview" TO "live" OR "static", YOU AGREE TO THE CAPTURE 
@@ -43,8 +43,8 @@
       // Live preview bufferSize (1 - 20) (default 5)
       "BufferSize": 5,
 
-      "ShowDelay": 500,
-      "HideDelay": 500,
-      "MoveDelay": 300
+      "ShowDelay": 600,
+      "HideDelay": 300,
+      "MoveDelay": 200
     }
 }

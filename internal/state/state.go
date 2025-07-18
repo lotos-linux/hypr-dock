@@ -2,7 +2,7 @@ package state
 
 import (
 	"hypr-dock/internal/itemsctl"
-	pvstate "hypr-dock/internal/previewstate"
+	"hypr-dock/internal/pvctl"
 	"hypr-dock/internal/settings"
 	"sync"
 
@@ -22,14 +22,16 @@ type State struct {
 	PreventHide    bool
 	List           *itemsctl.List
 	Special        bool
-	pvstate        *pvstate.PVState
+	PV             *pvctl.PV
+	ContextOpen    bool
 	mu             sync.Mutex
 }
 
-func New() *State {
+func New(settings settings.Settings) *State {
 	return &State{
-		List:    itemsctl.New(),
-		pvstate: pvstate.New(),
+		Settings: settings,
+		List:     itemsctl.New(),
+		PV:       pvctl.New(settings),
 	}
 }
 
@@ -168,9 +170,23 @@ func (s *State) GetSpecial() bool {
 	return s.Special
 }
 
-func (s *State) GetPVState() *pvstate.PVState {
+func (s *State) GetPV() *pvctl.PV {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.pvstate
+	return s.PV
+}
+
+func (s *State) GetContextOpen() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.ContextOpen
+}
+
+func (s *State) SetContextOpen(flag bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.ContextOpen = flag
 }

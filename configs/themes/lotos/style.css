@@ -20,23 +20,24 @@ button {
   padding-left: 0;
 }
 
-
-
-/* Hack */
-/* stackoverflow.com/questions/48452717/how-to-replace-the-deprecated-gtk3-gtkimagemenuitem */
-#hbox {
-  margin-left: -23px;
-}
-
 menu {
-  /* background-color: transparent; */
   border: none;
   box-shadow: none;
   outline: none;
-  /* -gtk-reparent-on-realize: false; */
   background-image: none;
 }
 
 menuitem {
   padding: 3px 6px;
+}
+
+#pv-item {
+  background-color: rgba(42, 41, 49, 0.473);
+  transition: all .2s ease-out;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.062);
+}
+
+#pv-item.hover {
+  background-color: rgba(67, 66, 75, 0.473);
 }

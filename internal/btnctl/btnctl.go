@@ -33,6 +33,10 @@ func previewControl(item *item.Item, appState *state.State) {
 	hideTimer := pv.GetHideTimer()
 	moveTimer := pv.GetMoveTimer()
 
+	if item.Instances == 0 {
+		item.Button.SetTooltipText(item.DesktopData.Name)
+	}
+
 	show := func() {
 		glib.IdleAdd(func() {
 			pv.Show(item, settings)
@@ -157,6 +161,8 @@ func previewControl(item *item.Item, appState *state.State) {
 
 func defaultControl(item *item.Item, appState *state.State) {
 	settings := appState.GetSettings()
+
+	item.Button.SetTooltipText(item.DesktopData.Name)
 
 	leftClick(item.Button, func(e *gdk.Event) {
 		if item.Instances == 0 {

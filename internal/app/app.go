@@ -58,6 +58,8 @@ func renderItems(appState *state.State) {
 	for _, ipcClient := range clients {
 		InitNewItemInIPC(ipcClient, appState)
 	}
+
+	ipc.DispatchEvent("hd>>dock-render-finish")
 }
 
 func InitNewItemInIPC(ipcClient ipc.Client, appState *state.State) {

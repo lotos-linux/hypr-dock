@@ -17,7 +17,7 @@ import (
 )
 
 func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (box *gtk.Box, err error) {
-	spacing := settings.PreviewStyle.Spacing
+	padding := settings.PreviewStyle.Padding
 
 	wrapper, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, settings.ContextPos)
 	if err != nil {
@@ -55,10 +55,10 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 			continue
 		}
 
-		windowBoxContent.SetMarginBottom(spacing)
-		windowBoxContent.SetMarginEnd(spacing)
-		windowBoxContent.SetMarginStart(spacing)
-		windowBoxContent.SetMarginTop(spacing)
+		windowBoxContent.SetMarginBottom(padding)
+		windowBoxContent.SetMarginEnd(padding)
+		windowBoxContent.SetMarginStart(padding)
+		windowBoxContent.SetMarginTop(padding / 2)
 
 		titleBox, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 5)
 		if err != nil {
@@ -66,7 +66,7 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 			continue
 		}
 
-		titleBox.SetMarginBottom(5)
+		titleBox.SetMarginBottom(padding / 2)
 
 		icon, err := utils.CreateImage(item.DesktopData.Icon, 16)
 		if err != nil {
@@ -83,7 +83,7 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 		label.SetEllipsize(pango.ELLIPSIZE_END)
 		label.SetXAlign(0)
 		label.SetHExpand(true)
-		label.SetMarginBottom(2)
+		// label.SetMarginBottom(2)
 
 		closeBtn, err := gtk.ButtonNewFromIconName("close", gtk.ICON_SIZE_SMALL_TOOLBAR)
 		if err != nil {
@@ -103,7 +103,7 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 			eventBox.Connect("enter-notify-event", func() {
 				context.AddClass("hover")
 			})
-			eventBox.Connect("leave-notify-event", func(w *gtk.Window, e *gdk.Event) {
+			eventBox.Connect("leave-notify-event", func(eb *gtk.EventBox, e *gdk.Event) {
 				event := gdk.EventCrossingNewFromEvent(e)
 				isInWindow := event.Detail() == 3 || event.Detail() == 0
 
@@ -153,9 +153,12 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 					return
 				}
 
-				newW := totalWidth - s.W - spacing*2 - settings.ContextPos
+				mutex.Lock()
+				defer mutex.Unlock()
 
-				go ipc.DispatchEvent(fmt.Sprintf("hd>>close-window>>%d::%d", newW, s.H))
+				totalWidth = totalWidth - s.W - padding*2 - settings.ContextPos
+
+				go ipc.DispatchEvent(fmt.Sprintf("hd>>close-window>>%d", totalWidth))
 				windowBox.Destroy()
 				wrapper.ShowAll()
 			})
@@ -169,8 +172,9 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 				commonHeight = s.H
 
 				if readyCount == len(item.Windows) {
-					totalWidth = totalWidth + settings.ContextPos*(len(item.Windows)-1) + 2*spacing*len(item.Windows)
-					commonHeight = commonHeight + 2*spacing
+					totalWidth = totalWidth + settings.ContextPos*(len(item.Windows)-1) + 2*padding*len(item.Windows)
+					commonHeight = commonHeight + 2*padding + 20
+
 					onReady(totalWidth, commonHeight)
 				}
 			})

@@ -59,22 +59,20 @@ func (pv *PV) Show(item *item.Item, settings settings.Settings) {
 		hide()
 	}, true)
 
-	ipc.AddEventListener("hd>>close-window", func(e string) {
-		event := strings.TrimPrefix(e, "hd>>close-window>>")
-		eventDetail := strings.SplitN(event, "::", 2)
-		ws := eventDetail[0]
-		// hs := eventDetail[1]
-		w, _ := strconv.Atoi(ws)
-		// h, _ := strconv.Atoi(hs)
+	if settings.Position == "top" || settings.Position == "bottom" {
+		ipc.AddEventListener("hd>>close-window", func(e string) {
+			eventDetail := strings.TrimPrefix(e, "hd>>close-window>>")
+			w, _ := strconv.Atoi(eventDetail)
+			x, y, _ := getCord(item.Button, settings)
 
-		x, y, _ := getCord(item.Button, settings)
-
-		pv.popup.Move(x-w/2, y)
-	}, true)
+			pv.popup.Move(x-w/2, y)
+		}, true)
+	}
 
 	pv.popup.SetWinCallBack(func(w *gtk.Window) error {
 		w.Connect("enter-notify-event", func() {
 			pv.hideTimer.Stop()
+			ipc.DispatchEvent("hd>>pv-pointer-enter")
 		})
 		w.Connect("leave-notify-event", func(w *gtk.Window, e *gdk.Event) {
 			event := gdk.EventCrossingNewFromEvent(e)
@@ -84,6 +82,7 @@ func (pv *PV) Show(item *item.Item, settings settings.Settings) {
 				return
 			}
 			pv.hideTimer.Run(settings.PreviewAdvanced.HideDelay, hide)
+			ipc.DispatchEvent("hd>>pv-pointer-leave")
 		})
 		return nil
 	})
@@ -173,8 +172,6 @@ func getCord(v *gtk.Button, settings settings.Settings) (int, int, error) {
 	margin := settings.ContextPos
 	pos := settings.Position
 
-	ex := strings.Contains(settings.Layer, "exclusive")
-
 	dock, err := layerinfo.GetDock()
 	if err != nil {
 		log.Println(err)
@@ -198,13 +195,11 @@ func getCord(v *gtk.Button, settings settings.Settings) (int, int, error) {
 		y = dock.Y + v.GetAllocation().GetY() + v.GetAllocatedHeight()/2
 	}
 
-	if !ex {
-		switch pos {
-		case "bottom", "top":
-			y = y + dock.H
-		case "left", "right":
-			x = x + dock.W
-		}
+	switch pos {
+	case "bottom", "top":
+		y = y + dock.H
+	case "left", "right":
+		x = x + dock.W
 	}
 
 	return x, y, err

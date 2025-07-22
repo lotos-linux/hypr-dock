@@ -2,6 +2,7 @@ package state
 
 import (
 	"hypr-dock/internal/itemsctl"
+	"hypr-dock/internal/pkg/timer"
 	"hypr-dock/internal/pvctl"
 	"hypr-dock/internal/settings"
 	"sync"
@@ -19,7 +20,7 @@ type State struct {
 	ItemsBox       *gtk.Box
 	Orientation    gtk.Orientation
 	Edge           layershell.LayerShellEdgeFlags
-	PreventHide    bool
+	DockHideTimer  *timer.Timer
 	List           *itemsctl.List
 	Special        bool
 	PV             *pvctl.PV
@@ -29,9 +30,10 @@ type State struct {
 
 func New(settings settings.Settings) *State {
 	return &State{
-		Settings: settings,
-		List:     itemsctl.New(),
-		PV:       pvctl.New(settings),
+		Settings:      settings,
+		DockHideTimer: timer.New(),
+		List:          itemsctl.New(),
+		PV:            pvctl.New(settings),
 	}
 }
 
@@ -40,6 +42,13 @@ func (s *State) GetList() *itemsctl.List {
 	defer s.mu.Unlock()
 
 	return s.List
+}
+
+func (s *State) GetDockHideTimer() *timer.Timer {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.DockHideTimer
 }
 
 func (s *State) AddSignalHandler(name string, id glib.SignalHandle) {
@@ -122,12 +131,6 @@ func (s *State) SetOrientation(orientation gtk.Orientation) {
 	s.Orientation = orientation
 }
 
-func (s *State) SetPreventHide(is bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.PreventHide = is
-}
-
 func (s *State) SetSpecial(is bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -156,12 +159,6 @@ func (s *State) GetOrientation() gtk.Orientation {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.Orientation
-}
-
-func (s *State) GetPreventHide() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.PreventHide
 }
 
 func (s *State) GetSpecial() bool {

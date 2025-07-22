@@ -133,4 +133,5 @@ func initLayerShell(win *gtk.Window) {
 	layershell.InitForWindow(win)
 	layershell.SetNamespace(win, "dock-popup")
 	layershell.SetLayer(win, layershell.LAYER_SHELL_LAYER_TOP)
+	layershell.SetExclusiveZone(win, -1)
 }

@@ -10,9 +10,10 @@
         // Size (px) (default 120)
         "Size": 120,
 
-        // Border-radius (px) (default 0)
+        // Image/Stream border-radius (px) (default 0)
         "BorderRadius": 0,
 
-        "Spacing": 10
+        // Popup padding (px) (default 10)
+        "Padding": 10
     }
 }

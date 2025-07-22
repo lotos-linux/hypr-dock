@@ -1,10 +1,10 @@
 package layering
 
 import (
+	detectzone "hypr-dock/internal/detectZone"
 	"hypr-dock/internal/state"
-	"log"
+	"hypr-dock/pkg/ipc"
 	"strings"
-	"time"
 
 	"github.com/dlasky/gotk3-layershell/layershell"
 	"github.com/gotk3/gotk3/gdk"
@@ -39,7 +39,7 @@ func ChangeLayer(layer string, appState *state.State) {
 		layershell.SetLayer(window, layers["bottom"])
 		layershell.SetExclusiveZone(window, 0)
 		AutoLayer(appState)
-		InitDetectArea(appState)
+		detectzone.Init(appState)
 		return
 	}
 
@@ -81,60 +81,34 @@ func ChangePosition(position string, appState *state.State) {
 	appState.SetEdge(edges[position])
 }
 
-func InitDetectArea(appState *state.State) {
-	edge := appState.GetEdge()
-	window := appState.GetWindow()
-
-	detectArea, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
-	if err != nil {
-		log.Fatal("InitDetectArea(), gtk.WindowNew() | ", err)
-	}
-	detectArea.SetName("detect")
-
-	layershell.InitForWindow(detectArea)
-	layershell.SetNamespace(detectArea, "dock-detect")
-	layershell.SetAnchor(detectArea, edge, true)
-	layershell.SetMargin(detectArea, edge, 0)
-	layershell.SetLayer(detectArea, layershell.LAYER_SHELL_LAYER_TOP)
-
-	long := appState.GetSettings().IconSize * appState.GetList().Len() * 2
-
-	switch appState.GetOrientation() {
-	case gtk.ORIENTATION_HORIZONTAL:
-		detectArea.SetSizeRequest(long, 1)
-	case gtk.ORIENTATION_VERTICAL:
-		detectArea.SetSizeRequest(1, long)
-	}
-
-	detectArea.Connect("enter-notify-event", func(detectWindow *gtk.Window, e *gdk.Event) {
-		appState.SetPreventHide(false)
-		go func() {
-			layershell.SetLayer(window, layershell.LAYER_SHELL_LAYER_TOP)
-		}()
-	})
-
-	detectArea.ShowAll()
-	appState.SetDetectArea(detectArea)
-}
-
 func AutoLayer(appState *state.State) {
 	DisableAutoLayer(appState)
 	window := appState.GetWindow()
+
+	ipc.AddEventListener("hd>>pv-pointer-enter", func(e string) {
+		appState.GetDockHideTimer().Stop()
+	}, true)
+
+	ipc.AddEventListener("hd>>pv-pointer-leave", func(e string) {
+		DispathLeaveEvent(window, nil, appState)
+	}, true)
+
+	ipc.AddEventListener("hd>>focus-window", func(e string) {
+		DispathLeaveEvent(window, nil, appState)
+	}, true)
 
 	enterSig := window.Connect("enter-notify-event", func(window *gtk.Window, e *gdk.Event) {
 		event := gdk.EventCrossingNewFromEvent(e)
 		isInWindow := event.Detail() == 3 || event.Detail() == 4
 
-		if isInWindow {
-			appState.SetPreventHide(true)
+		if !isInWindow || appState.GetSpecial() {
+			return
 		}
 
-		if isInWindow && !appState.GetSpecial() {
-			go func() {
-				layershell.SetLayer(window, layershell.LAYER_SHELL_LAYER_TOP)
-				appState.SetPreventHide(true)
-			}()
-		}
+		timer := appState.GetDockHideTimer()
+
+		timer.Stop()
+		layershell.SetLayer(window, layershell.LAYER_SHELL_LAYER_TOP)
 	})
 	appState.AddSignalHandler("enter", enterSig)
 
@@ -145,27 +119,21 @@ func AutoLayer(appState *state.State) {
 }
 
 func DispathLeaveEvent(window *gtk.Window, e *gdk.Event, appState *state.State) {
-	var isInWindow bool
+	isInWindow := true
 	if e != nil {
 		event := gdk.EventCrossingNewFromEvent(e)
 		isInWindow = event.Detail() == 3 || event.Detail() == 4
-	} else {
-		isInWindow = true
 	}
 
-	if isInWindow {
-		appState.SetPreventHide(false)
+	if !isInWindow {
+		return
 	}
 
-	if isInWindow && !appState.GetPreventHide() {
-		go func() {
-			time.Sleep(time.Second / 3)
-			if !appState.GetPreventHide() {
-				layershell.SetLayer(window, layershell.LAYER_SHELL_LAYER_BOTTOM)
-				appState.SetPreventHide(false)
-			}
-		}()
-	}
+	timer := appState.GetDockHideTimer()
+
+	timer.Run(appState.Settings.AutoHideDeley, func() {
+		layershell.SetLayer(window, layershell.LAYER_SHELL_LAYER_BOTTOM)
+	})
 }
 
 func DisableAutoLayer(appState *state.State) {
@@ -179,6 +147,4 @@ func DisableAutoLayer(appState *state.State) {
 
 	appState.RemoveSignalHandler("enter", window)
 	appState.RemoveSignalHandler("leave", window)
-
-	appState.SetPreventHide(false)
 }

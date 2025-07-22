@@ -5,10 +5,13 @@
     "IconSize": 23,
 
     // Window overlay layer height (auto, exclusive-top, exclusive-bottom, background, bottom, top, overlay) (default "auto")
-    "Layer": "exclusive-bottom",
+    "Layer": "auto",
 
     // Window position on screen (top, bottom, left, right) (default "bottom")
     "Position": "bottom",
+
+    // Delay before hiding the dock (ms) (default 400)
+    "AutoHideDeley": 400, // *Only for "Layer": "auto"*
 
     // Use system gap (true, false) (default "true")
     "SystemGapUsed": "true",
@@ -43,8 +46,9 @@
       // Live preview bufferSize (1 - 20) (default 5)
       "BufferSize": 5,
 
-      "ShowDelay": 600,
-      "HideDelay": 300,
-      "MoveDelay": 200
+      // Popup show/hide/move delays (ms)
+      "ShowDelay": 600, // (default 600)
+      "HideDelay": 300, // (default 300)
+      "MoveDelay": 200  // (default 200)
     }
 }

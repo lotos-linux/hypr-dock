@@ -18,6 +18,7 @@ type Config struct {
 	Position        string
 	Blur            string
 	Spacing         int
+	AutoHideDeley   int
 	SystemGapUsed   string
 	Margin          int
 	ContextPos      int
@@ -32,7 +33,7 @@ type Config struct {
 	PreviewStyle struct {
 		Size         int
 		BorderRadius int
-		Spacing      int
+		Padding      int
 	}
 }
 
@@ -42,7 +43,7 @@ type ThemeConfig struct {
 	PreviewStyle struct {
 		Size         int
 		BorderRadius int
-		Spacing      int
+		Padding      int
 	}
 }
 
@@ -59,6 +60,7 @@ func GetDefaultConfig() Config {
 		Blur:          "true",
 		Spacing:       8,
 		SystemGapUsed: "true",
+		AutoHideDeley: 400,
 		Margin:        8,
 		ContextPos:    5,
 		Preview:       "none",
@@ -71,17 +73,18 @@ func GetDefaultConfig() Config {
 		}{
 			FPS:        30,
 			BufferSize: 5,
-			ShowDelay:  500,
-			HideDelay:  500,
+			ShowDelay:  600,
+			HideDelay:  300,
+			MoveDelay:  200,
 		},
 		PreviewStyle: struct {
 			Size         int
 			BorderRadius int
-			Spacing      int
+			Padding      int
 		}{
 			Size:         120,
 			BorderRadius: 0,
-			Spacing:      10,
+			Padding:      10,
 		},
 	}
 }

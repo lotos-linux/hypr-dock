@@ -112,7 +112,6 @@ func (item *Item) RemoveLastInstance(windowIndex int, settings settings.Settings
 
 	newImage, err := indicator.New(item.Instances-1, settings)
 	if err == nil {
-		// item.ButtonBox.Add(newImage)
 		appendInducator(item.ButtonBox, newImage, settings.Position)
 	}
 

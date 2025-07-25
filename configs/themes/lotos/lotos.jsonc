@@ -7,7 +7,6 @@
 
     // Preview settings
     "PreviewStyle": {
-<<<<<<< HEAD
         // Size (px) (default 120)
         "Size": 120,
 
@@ -16,16 +15,5 @@
 
         // Popup padding (px) (default 10)
         "Padding": 10
-=======
-        // Size (px) (default 200)
-        "Size": 200,
-        /*
-          For "Position": "bottom"/"top" - height
-          For "Position": "left"/"right" - width
-        */
-
-        // Border-radius (px) (default 10)
-        "BorderRadius": 10
->>>>>>> 3eabd8f (preview mode start)
     }
 }

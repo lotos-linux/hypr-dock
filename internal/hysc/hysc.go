@@ -117,11 +117,14 @@ func (s *Stream) Start(fps int, buferSize ...int) error {
 					return
 				}
 
+<<<<<<< HEAD
 				if s == nil {
 					app.Close()
 					return
 				}
 
+=======
+>>>>>>> 3eabd8f (preview mode start)
 				if s.scaleMode != nil {
 					pixbuf, err = s.scale(pixbuf)
 					if err != nil {

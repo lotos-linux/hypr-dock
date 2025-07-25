@@ -4,7 +4,10 @@ import (
 	"hypr-dock/internal/item"
 	"hypr-dock/internal/layering"
 	"hypr-dock/internal/state"
+<<<<<<< HEAD
 	"hypr-dock/pkg/ipc"
+=======
+>>>>>>> 3eabd8f (preview mode start)
 	"log"
 
 	"github.com/gotk3/gotk3/gdk"
@@ -31,9 +34,13 @@ func connectContextMenu(item *item.Item, appState *state.State) {
 
 			firstg, secondg := getGravity(settings.Position)
 			menu.PopupAtRect(win, zone, firstg, secondg, nil)
+<<<<<<< HEAD
 			ipc.DispatchEvent("hd>>open-context")
 			menu.Connect("deactivate", func() {
 				ipc.DispatchEvent("hd>>close-context")
+=======
+			menu.Connect("deactivate", func() {
+>>>>>>> 3eabd8f (preview mode start)
 				dispather(appState, item.Button)
 			})
 

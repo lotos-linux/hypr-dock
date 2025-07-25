@@ -112,6 +112,10 @@ func (item *Item) RemoveLastInstance(windowIndex int, settings settings.Settings
 
 	newImage, err := indicator.New(item.Instances-1, settings)
 	if err == nil {
+<<<<<<< HEAD
+=======
+		// item.ButtonBox.Add(newImage)
+>>>>>>> 3eabd8f (preview mode start)
 		appendInducator(item.ButtonBox, newImage, settings.Position)
 	}
 

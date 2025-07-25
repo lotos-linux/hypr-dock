@@ -20,16 +20,34 @@ button {
   padding-left: 0;
 }
 
+<<<<<<< HEAD
 menu {
   border: none;
   box-shadow: none;
   outline: none;
+=======
+
+
+/* Hack */
+/* stackoverflow.com/questions/48452717/how-to-replace-the-deprecated-gtk3-gtkimagemenuitem */
+#hbox {
+  margin-left: -23px;
+}
+
+menu {
+  /* background-color: transparent; */
+  border: none;
+  box-shadow: none;
+  outline: none;
+  /* -gtk-reparent-on-realize: false; */
+>>>>>>> 3eabd8f (preview mode start)
   background-image: none;
 }
 
 menuitem {
   padding: 3px 6px;
 }
+<<<<<<< HEAD
 
 #pv-item {
   background-color: rgba(42, 41, 49, 0.473);
@@ -43,3 +61,5 @@ menuitem {
 
 
 }
+=======
+>>>>>>> 3eabd8f (preview mode start)

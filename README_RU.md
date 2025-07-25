@@ -1,13 +1,8 @@
 # hypr-dock
 ### Интерактовная док-панель для Hyprland
 
-![screenshot1](https://github.com/user-attachments/assets/b98cdf7c-83b0-4c12-9da1-ada9e1543178)
-![250318_10h19m33s_screenshot](https://github.com/user-attachments/assets/3ef014e4-4613-4e28-b186-71ce262db404)
-
-
-https://github.com/user-attachments/assets/50d26918-ac74-4b3b-b384-9dd98c62a799
-
-
+<img width="1360" height="768" alt="250725_16h02m52s_screenshot" src="https://github.com/user-attachments/assets/041d2cf6-13ba-4c89-a960-1903073ff2d4" />
+<img width="1360" height="768" alt="250725_16h03m09s_screenshot" src="https://github.com/user-attachments/assets/0c1ad8ca-37c1-4fd6-a48d-46f74c2d2609" />
 
 ## Установка
 

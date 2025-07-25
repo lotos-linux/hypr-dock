@@ -17,5 +17,38 @@
     "SystemGapUsed": "true",
 
     // Indent from the edge of the screen (px) (default 8)
-    "Margin": 8
+    "Margin": 8,
+
+    // Distance of the context menu from the window (px) (default 0)
+    "ContextPos": 5,
+
+    
+    // Window thumbnail mode selection (none, live, static) (default "none")
+    "Preview": "static",
+    /*
+      "none"   - disabled (text menus)
+      "static" - last window frame (stable)
+      "live"   - window streaming (unstable) !EXPEREMENTAL!
+      
+      !WARNING! 
+      BY SETTING "Preview" TO "live" OR "static", YOU AGREE TO THE CAPTURE 
+      OF WINDOW CONTENTS.
+      THE "HYPR-DOCK" PROGRAM DOES NOT COLLECT, STORE, OR TRANSMIT ANY DATA.
+      WINDOW CAPTURE OCCURS ONLY FOR THE DURATION OF THE THUMBNAIL DISPLAY!
+      
+      Source code: https://github.com/lotos-linux/hypr-dock
+    */
+
+    "PreviewAdvanced": {
+      // Live preview fps (0 - ∞) (default 30)
+      "FPS": 30,
+
+      // Live preview bufferSize (1 - 20) (default 5)
+      "BufferSize": 5,
+
+      // Popup show/hide/move delays (ms)
+      "ShowDelay": 600, // (default 600)
+      "HideDelay": 300, // (default 300)
+      "MoveDelay": 200  // (default 200)
+    }
 }

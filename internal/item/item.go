@@ -60,9 +60,7 @@ func New(className string, settings settings.Settings) (*Item, error) {
 		}
 
 		button.SetName(className)
-		if settings.Preview == "none" {
-			button.SetTooltipText(desktopData.Name)
-		}
+		// button.SetTooltipText(desktopData.Name)
 
 		display, err := gdk.DisplayGetDefault()
 		if err == nil {
@@ -114,23 +112,12 @@ func (item *Item) RemoveLastInstance(windowIndex int, settings settings.Settings
 
 	newImage, err := indicator.New(item.Instances-1, settings)
 	if err == nil {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-		// item.ButtonBox.Add(newImage)
->>>>>>> 3eabd8f (preview mode start)
-=======
->>>>>>> b711809 (fix indicator image)
 		appendInducator(item.ButtonBox, newImage, settings.Position)
 	}
 
 	item.Instances -= 1
 	item.Windows = utils.RemoveFromSlice(item.Windows, windowIndex)
 	item.IndicatorImage = newImage
-
-	if item.Instances == 0 && settings.Preview != "none" {
-		item.Button.SetTooltipText(item.DesktopData.Name)
-	}
 }
 
 func (item *Item) UpdateState(ipcClient ipc.Client, settings settings.Settings) {
@@ -152,10 +139,6 @@ func (item *Item) UpdateState(ipcClient ipc.Client, settings settings.Settings) 
 	item.Windows = append(item.Windows, appWindow)
 	item.IndicatorImage = indicatorImage
 	item.Instances += 1
-
-	if item.Instances == 1 && settings.Preview != "none" {
-		item.Button.SetTooltipText("")
-	}
 }
 
 func (item *Item) IsPinned() bool {

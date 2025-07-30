@@ -146,6 +146,17 @@ func (a *App) CaptureFrame(handle uint64) (*image.NRGBA, error) {
 		return nil, fmt.Errorf(`no buffer formats`)
 	}
 
+	a.log.Debug("Available buffer formats:", "count", len(formats))
+	for i, format := range formats {
+	    a.log.Debug(fmt.Sprintf("Format %d:", i),
+	        "width", format.Width,
+	        "height", format.Height,
+	        "stride", format.Stride,
+	        "format", format.Format,
+	        "shm_format_name", client.ShmFormat(format.Format).String(),
+	    )
+	}
+
 	var selected *HyprlandToplevelExportFrameV1BufferEvent
 OUTER:
 	for _, format := range formats {

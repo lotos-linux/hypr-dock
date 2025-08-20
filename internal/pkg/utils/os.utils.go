@@ -7,13 +7,14 @@ import (
 	"os/exec"
 	"strings"
 )
+
 func Launch(command string) {
-    cmd := exec.Command("sh", "-c", command)
-    log.Printf("Launching command: %s\n", command)
-    
-    if err := cmd.Start(); err != nil {
-        log.Printf("Unable to launch command: %s, error: %v\n", command, err)
-    }
+	cmd := exec.Command("sh", "-c", command)
+	log.Printf("Launching command: %s\n", command)
+
+	if err := cmd.Start(); err != nil {
+		log.Printf("Unable to launch command: %s, error: %v\n", command, err)
+	}
 }
 
 func LoadTextFile(path string) ([]string, error) {

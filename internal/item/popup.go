@@ -10,6 +10,7 @@ import (
 
 	"hypr-dock/internal/pkg/desktop"
 	"hypr-dock/internal/pkg/utils"
+	"hypr-dock/internal/placeholders"
 	"hypr-dock/internal/settings"
 	"hypr-dock/pkg/ipc"
 )
@@ -136,7 +137,7 @@ func BuildLaunchMenuItem(item *Item, exec string) (*gtk.MenuItem, error) {
 	}
 
 	launchMenuItem, err := BuildContextItem(labelText, func() {
-		utils.Launch(exec)
+		placeholders.Run(exec)
 	}, item.DesktopData.Icon)
 
 	if err != nil {

@@ -30,6 +30,7 @@ func Run(command string) error {
 		return err
 	}
 
+	fmt.Println(command, " ", cleanCommand)
 	utils.Launch(cleanCommand)
 	return nil
 }

@@ -8,6 +8,10 @@ import (
 
 type Desktop2 map[string]map[string]string
 
+func NewV2(className string) (*Desktop2, error) {
+	return Parse(SearchDesktopFile(className))
+}
+
 func Parse(path string) (*Desktop2, error) {
 	lines, err := utils.LoadTextFile(path)
 	if err != nil {

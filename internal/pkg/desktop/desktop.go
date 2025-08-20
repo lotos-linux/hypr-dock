@@ -1,13 +1,10 @@
 package desktop
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-
-	"hypr-dock/internal/pkg/utils"
 )
 
 type Desktop struct {
@@ -20,22 +17,51 @@ type Desktop struct {
 var desktopDirs = GetAppDirs()
 
 func New(className string) *Desktop {
-	allData, err := utils.LoadTextFile(SearchDesktopFile(className))
-	if err != nil {
-		log.Println(err)
-		return &Desktop{
-			Name:         "Untitle",
-			Icon:         "",
-			Exec:         "",
-			SingleWindow: false,
-		}
+	errData := &Desktop{
+		Name:         "Untitle",
+		Icon:         "",
+		Exec:         "",
+		SingleWindow: false,
 	}
 
+	allData, err := Parse(SearchDesktopFile(className))
+	if err != nil {
+		return errData
+	}
+
+	appData := *allData
+	general, exist := appData["desktop entry"]
+	if !exist {
+		return errData
+	}
+
+	name, exist := general["name"]
+	if !exist {
+		name = errData.Name
+	}
+
+	icon, exist := general["icon"]
+	if !exist {
+		icon = ""
+	}
+
+	exec, exist := general["exec"]
+	if !exist {
+		exec = ""
+	}
+
+	singleWindowStr, exist := general["singlemainwindow"]
+	if !exist {
+		singleWindowStr = "false"
+	}
+
+	singleWindow := singleWindowStr == "true"
+
 	return &Desktop{
-		Name:         GetDesktopOption(allData, "Name"),
-		Icon:         GetDesktopOption(allData, "Icon"),
-		Exec:         GetDesktopOption(allData, "Exec"),
-		SingleWindow: GetSingleWindow(allData),
+		Name:         name,
+		Icon:         icon,
+		Exec:         exec,
+		SingleWindow: singleWindow,
 	}
 }
 

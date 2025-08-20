@@ -20,6 +20,7 @@ type Item struct {
 	Instances      int
 	Windows        []map[string]string
 	DesktopData    *desktop.Desktop
+	DesktopDataV2  *desktop.Desktop2
 	Actions        []*desktop.Action
 	ClassName      string
 	Button         *gtk.Button
@@ -31,6 +32,10 @@ type Item struct {
 
 func New(className string, settings settings.Settings) (*Item, error) {
 	desktopData := desktop.New(className)
+	desktopDataV2, err := desktop.NewV2(className)
+	if err != nil {
+		log.Println(err)
+	}
 
 	orientation := gtk.ORIENTATION_VERTICAL
 	switch settings.Position {
@@ -97,6 +102,7 @@ func New(className string, settings settings.Settings) (*Item, error) {
 		Button:         button,
 		ButtonBox:      item,
 		DesktopData:    desktopData,
+		DesktopDataV2:  desktopDataV2,
 		Actions:        actions,
 		Instances:      0,
 		ClassName:      className,

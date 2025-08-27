@@ -14,7 +14,7 @@ type Desktop struct {
 	SingleWindow bool
 }
 
-var desktopDirs = GetAppDirs()
+// var desktopDirs = GetAppDirs()
 
 func New(className string) *Desktop {
 	errData := &Desktop{
@@ -65,13 +65,8 @@ func New(className string) *Desktop {
 	}
 }
 
-func GetSingleWindow(allData []string) bool {
-	val := GetDesktopOption(allData, "SingleMainWindow")
-	return val == "true"
-}
-
 func SearchDesktopFile(className string) string {
-	for _, appDir := range desktopDirs {
+	for _, appDir := range GetAppDirs() {
 		desktopFile := className + ".desktop"
 		_, err := os.Stat(filepath.Join(appDir, desktopFile))
 		if err == nil {
@@ -94,17 +89,6 @@ func SearchDesktopFile(className string) string {
 		}
 	}
 
-	return ""
-}
-
-func GetDesktopOption(allData []string, option string) string {
-	for lineIndex := range len(allData) {
-		line := allData[lineIndex]
-		if strings.HasPrefix(line, option+"=") {
-			optionValue := strings.Split(line, "=")[1]
-			return optionValue
-		}
-	}
 	return ""
 }
 

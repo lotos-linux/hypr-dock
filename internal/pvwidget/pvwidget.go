@@ -83,7 +83,7 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 		label.SetEllipsize(pango.ELLIPSIZE_END)
 		label.SetXAlign(0)
 		label.SetHExpand(true)
-		// label.SetMarginBottom(2)
+		label.SetTooltipText(window["Title"])
 
 		closeBtn, err := gtk.ButtonNewFromIconName("close", gtk.ICON_SIZE_SMALL_TOOLBAR)
 		if err != nil {

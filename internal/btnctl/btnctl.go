@@ -2,7 +2,6 @@ package btnctl
 
 import (
 	"hypr-dock/internal/item"
-	"hypr-dock/internal/placeholders"
 	"hypr-dock/internal/state"
 	"hypr-dock/pkg/ipc"
 	"log"
@@ -58,7 +57,7 @@ func previewControl(item *item.Item, appState *state.State) {
 
 	leftClick(item.Button, func(e *gdk.Event) {
 		if item.Instances == 0 {
-			placeholders.Run(item.DesktopData.Exec)
+			item.App.Run()
 		}
 		if item.Instances == 1 {
 			ipc.Hyprctl("dispatch focuswindow address:" + item.Windows[0]["Address"])
@@ -110,7 +109,7 @@ func defaultControl(item *item.Item, appState *state.State) {
 
 	leftClick(item.Button, func(e *gdk.Event) {
 		if item.Instances == 0 {
-			placeholders.Run(item.DesktopData.Exec)
+			item.App.Run()
 		}
 		if item.Instances == 1 {
 			ipc.Hyprctl("dispatch focuswindow address:" + item.Windows[0]["Address"])

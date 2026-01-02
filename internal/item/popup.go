@@ -8,9 +8,8 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 	"github.com/gotk3/gotk3/pango"
 
-	"hypr-dock/internal/pkg/desktop"
+	"hypr-dock/internal/desktop"
 	"hypr-dock/internal/pkg/utils"
-	"hypr-dock/internal/placeholders"
 	"hypr-dock/internal/settings"
 	"hypr-dock/pkg/ipc"
 )
@@ -37,9 +36,10 @@ func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
 		log.Println(err)
 	}
 
-	desktopData := item.DesktopData
+	app := item.App
+	actions := app.GetActions()
 
-	AddWindowsItemToMenu(menu, item.Windows, desktopData)
+	AddWindowsItemToMenu(menu, item.Windows, app)
 
 	if item.Instances != 0 {
 		separator, err := gtk.SeparatorMenuItemNew()
@@ -50,19 +50,19 @@ func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
 		}
 	}
 
-	if item.Actions != nil {
-		for _, action := range item.Actions {
+	if actions != nil {
+		for _, action := range actions {
 			exec := func() {
-				utils.Launch(action.Exec)
+				action.Run()
 			}
 
 			var actionMenuItem *gtk.MenuItem
 			var err error
 
-			if action.Icon == "" {
-				actionMenuItem, err = BuildContextItem(action.Name, exec)
+			if action.GetIcon() == "" {
+				actionMenuItem, err = BuildContextItem(action.GetName(), exec)
 			} else {
-				actionMenuItem, err = BuildContextItem(action.Name, exec, action.Icon)
+				actionMenuItem, err = BuildContextItem(action.GetName(), exec, action.GetIcon())
 			}
 
 			if err == nil {
@@ -80,7 +80,7 @@ func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
 		}
 	}
 
-	launchMenuItem, err := BuildLaunchMenuItem(item, desktopData.Exec)
+	launchMenuItem, err := BuildLaunchMenuItem(item)
 	if err == nil {
 		menu.Append(launchMenuItem)
 	} else {
@@ -111,11 +111,11 @@ func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
 	return menu, nil
 }
 
-func AddWindowsItemToMenu(menu *gtk.Menu, windows []map[string]string, desktopData *desktop.Desktop) {
+func AddWindowsItemToMenu(menu *gtk.Menu, windows []map[string]string, app *desktop.App) {
 	for _, window := range windows {
 		menuItem, err := BuildContextItem(window["Title"], func() {
 			go ipc.Hyprctl("dispatch focuswindow address:" + window["Address"])
-		}, desktopData.Icon)
+		}, app.GetIcon())
 
 		if err != nil {
 			log.Println(err)
@@ -126,19 +126,21 @@ func AddWindowsItemToMenu(menu *gtk.Menu, windows []map[string]string, desktopDa
 	}
 }
 
-func BuildLaunchMenuItem(item *Item, exec string) (*gtk.MenuItem, error) {
-	if item.Instances != 0 && item.DesktopData.SingleWindow {
+func BuildLaunchMenuItem(item *Item) (*gtk.MenuItem, error) {
+	app := item.App
+
+	if item.Instances != 0 && app.GetSingleWindow() {
 		return nil, errors.New("")
 	}
 
-	labelText := item.DesktopData.Name
+	labelText := app.GetName()
 	if item.Instances != 0 {
 		labelText = "New Window - " + labelText
 	}
 
 	launchMenuItem, err := BuildContextItem(labelText, func() {
-		placeholders.Run(exec)
-	}, item.DesktopData.Icon)
+		app.Run()
+	}, app.GetIcon())
 
 	if err != nil {
 		return nil, err

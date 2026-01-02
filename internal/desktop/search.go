@@ -7,64 +7,6 @@ import (
 	"strings"
 )
 
-type Desktop struct {
-	Name         string
-	Icon         string
-	Exec         string
-	SingleWindow bool
-}
-
-// var desktopDirs = GetAppDirs()
-
-func New(className string) *Desktop {
-	errData := &Desktop{
-		Name:         "Untitle",
-		Icon:         "",
-		Exec:         "",
-		SingleWindow: false,
-	}
-
-	allData, err := Parse(SearchDesktopFile(className))
-	if err != nil {
-		return errData
-	}
-
-	appData := *allData
-	general, exist := appData["desktop entry"]
-	if !exist {
-		return errData
-	}
-
-	name, exist := general["name"]
-	if !exist {
-		name = errData.Name
-	}
-
-	icon, exist := general["icon"]
-	if !exist {
-		icon = ""
-	}
-
-	exec, exist := general["exec"]
-	if !exist {
-		exec = ""
-	}
-
-	singleWindowStr, exist := general["singlemainwindow"]
-	if !exist {
-		singleWindowStr = "false"
-	}
-
-	singleWindow := singleWindowStr == "true"
-
-	return &Desktop{
-		Name:         name,
-		Icon:         icon,
-		Exec:         exec,
-		SingleWindow: singleWindow,
-	}
-}
-
 func SearchDesktopFile(className string) string {
 	for _, appDir := range GetAppDirs() {
 		desktopFile := className + ".desktop"

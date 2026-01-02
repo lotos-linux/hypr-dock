@@ -1,9 +1,9 @@
-package placeholders
+package desktop
 
 import (
 	"fmt"
-	"hypr-dock/internal/pkg/utils"
 	"log"
+	"os/exec"
 	"strings"
 )
 
@@ -23,19 +23,16 @@ var desktopPlaceholders = map[string]bool{
 	"%m": true,
 }
 
-func Run(command string) error {
-	cleanCommand, err := Clean(command)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
+func Launch(command string) {
+	cmd := exec.Command("sh", "-c", command)
+	log.Printf("Launching command: %s\n", command)
 
-	fmt.Println(command, " ", cleanCommand)
-	utils.Launch(cleanCommand)
-	return nil
+	if err := cmd.Start(); err != nil {
+		log.Printf("Unable to launch command: %s, error: %v\n", command, err)
+	}
 }
 
-func Clean(execLine string) (string, error) {
+func CleanExec(execLine string) (string, error) {
 	args, err := splitCommandLine(execLine)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse command line: %w", err)

@@ -7,8 +7,8 @@ import (
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
 
+	"hypr-dock/internal/desktop"
 	"hypr-dock/internal/pkg/cfg"
-	"hypr-dock/internal/pkg/desktop"
 	"hypr-dock/internal/pkg/indicator"
 	"hypr-dock/internal/pkg/utils"
 	"hypr-dock/internal/settings"
@@ -19,9 +19,7 @@ import (
 type Item struct {
 	Instances      int
 	Windows        []map[string]string
-	DesktopData    *desktop.Desktop
-	DesktopDataV2  *desktop.Desktop2
-	Actions        []*desktop.Action
+	App            *desktop.App
 	ClassName      string
 	Button         *gtk.Button
 	ButtonBox      *gtk.Box
@@ -31,11 +29,7 @@ type Item struct {
 }
 
 func New(className string, settings settings.Settings) (*Item, error) {
-	desktopData := desktop.New(className)
-	desktopDataV2, err := desktop.NewV2(className)
-	if err != nil {
-		log.Println(err)
-	}
+	app := desktop.New(className)
 
 	orientation := gtk.ORIENTATION_VERTICAL
 	switch settings.Position {
@@ -57,7 +51,7 @@ func New(className string, settings settings.Settings) (*Item, error) {
 
 	button, err := gtk.ButtonNew()
 	if err == nil {
-		image, err := utils.CreateImage(desktopData.Icon, settings.IconSize)
+		image, err := utils.CreateImage(app.GetIcon(), settings.IconSize)
 		if err == nil {
 			button.SetImage(image)
 		} else {
@@ -66,7 +60,7 @@ func New(className string, settings settings.Settings) (*Item, error) {
 
 		button.SetName(className)
 
-		button.SetTooltipText(desktopData.Name)
+		button.SetTooltipText(app.GetName())
 
 		display, err := gdk.DisplayGetDefault()
 		if err == nil {
@@ -93,18 +87,11 @@ func New(className string, settings settings.Settings) (*Item, error) {
 		log.Println(err)
 	}
 
-	actions, err := desktop.GetAppActions(className)
-	if err != nil {
-		log.Println(err)
-	}
-
 	return &Item{
 		IndicatorImage: indicatorImage,
 		Button:         button,
 		ButtonBox:      item,
-		DesktopData:    desktopData,
-		DesktopDataV2:  desktopDataV2,
-		Actions:        actions,
+		App:            app,
 		Instances:      0,
 		ClassName:      className,
 		List:           nil,
@@ -127,7 +114,7 @@ func (item *Item) RemoveLastInstance(windowIndex int, settings settings.Settings
 	item.IndicatorImage = newImage
 
 	if item.Instances == 0 {
-		item.Button.SetTooltipText(item.DesktopData.Name)
+		item.Button.SetTooltipText(item.App.GetName())
 	}
 }
 

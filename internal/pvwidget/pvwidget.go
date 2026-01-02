@@ -68,7 +68,7 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 
 		titleBox.SetMarginBottom(padding / 2)
 
-		icon, err := utils.CreateImage(item.DesktopData.Icon, 16)
+		icon, err := utils.CreateImage(item.App.GetIcon(), 16)
 		if err != nil {
 			log.Println(err)
 			continue

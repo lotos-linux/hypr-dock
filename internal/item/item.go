@@ -113,7 +113,7 @@ func (item *Item) RemoveLastInstance(windowIndex int, settings settings.Settings
 	item.Windows = utils.RemoveFromSlice(item.Windows, windowIndex)
 	item.IndicatorImage = newImage
 
-	if item.Instances == 0 {
+	if item.Instances == 0 && settings.Preview != "none" {
 		item.Button.SetTooltipText(item.App.GetName())
 	}
 }
@@ -138,7 +138,7 @@ func (item *Item) UpdateState(ipcClient ipc.Client, settings settings.Settings) 
 	item.IndicatorImage = indicatorImage
 	item.Instances += 1
 
-	if item.Instances != 0 {
+	if item.Instances != 0 && settings.Preview != "none" {
 		item.Button.SetTooltipText("")
 	}
 }

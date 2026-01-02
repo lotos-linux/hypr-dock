@@ -17,16 +17,31 @@ func SearchDesktopFile(className string) string {
 
 		// If file non found
 		files, _ := os.ReadDir(appDir)
+
+		// "krita" > "org.kde.krita.desktop" / "lutris" > "net.lutris.Lutris.desktop"
+		for _, file := range files {
+			if strings.Count(file.Name(), ".") > 1 && strings.Contains(file.Name(), className) {
+				return filepath.Join(appDir, file.Name())
+			}
+
+		}
+
+		// "VirtualBox Manager" > "virtualbox.desktop"
+		for _, file := range files {
+			if file.Name() == strings.Split(strings.ToLower(className), " ")[0]+".desktop" {
+				return filepath.Join(appDir, file.Name())
+			}
+		}
+
+		// "GitHub Desktop" > "github-desktop.desktop"
 		for _, file := range files {
 			fileName := file.Name()
+			fileName = strings.ToLower(fileName)
+			classNameLower := strings.ToLower(className)
+			classNameLower = strings.ReplaceAll(classNameLower, " ", "-")
 
-			// "krita" > "org.kde.krita.desktop" / "lutris" > "net.lutris.Lutris.desktop"
-			if strings.Count(fileName, ".") > 1 && strings.Contains(fileName, className) {
-				return filepath.Join(appDir, fileName)
-			}
-			// "VirtualBox Manager" > "virtualbox.desktop"
-			if fileName == strings.Split(strings.ToLower(className), " ")[0]+".desktop" {
-				return filepath.Join(appDir, fileName)
+			if fileName == classNameLower+".desktop" {
+				return filepath.Join(appDir, file.Name())
 			}
 		}
 	}

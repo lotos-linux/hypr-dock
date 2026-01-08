@@ -19,6 +19,7 @@ Translations: [`Русский`](https://github.com/lotos-linux/hypr-dock/blob/m
 - gtk-layer-shell
 
 ### Install
+! The first build may take an extremely long time due to linking with gtk3 !
 ```bash
 git clone https://github.com/lotos-linux/hypr-dock.git
 cd hypr-dock
@@ -143,7 +144,7 @@ bind = Super, D, exec, hypr-dock
 > Live preview behaves unpredictably.
 > Currently, it is not recommended to set `"Preview": "live"`
 
-#### Настройки внешнего вида превью происхрдит через файлы темы
+#### The appearance preview settings are configured through theme files
 
 ### There is also a pinned.json file for pinned applications
 #### Example:

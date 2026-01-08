@@ -85,7 +85,14 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 		label.SetHExpand(true)
 		label.SetTooltipText(window["Title"])
 
-		closeBtn, err := gtk.ButtonNewFromIconName("close", gtk.ICON_SIZE_SMALL_TOOLBAR)
+		iconName := utils.GetFirstAvailableImage([]string{
+			"close",
+			"close-symbolic",
+			"window-close",
+			"window-close-symbolic",
+		})
+
+		closeBtn, err := gtk.ButtonNewFromIconName(iconName, gtk.ICON_SIZE_SMALL_TOOLBAR)
 		if err != nil {
 			log.Println(err)
 			continue

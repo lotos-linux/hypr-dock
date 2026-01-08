@@ -3,6 +3,7 @@ package utils
 import (
 	"log"
 	"math"
+	"os"
 	"strings"
 
 	"github.com/gotk3/gotk3/gdk"
@@ -113,4 +114,35 @@ func RemoveStyleProvider(widget *gtk.Box, provider *gtk.CssProvider) {
 	}
 
 	styleContext.RemoveProvider(provider)
+}
+
+func HasIcon(iconName string) bool {
+	theme, err := gtk.IconThemeGetDefault()
+	if err != nil {
+		return false
+	}
+	return theme.HasIcon(iconName)
+}
+
+func GetFirstAvailableImage(sources []string, fallback ...string) string {
+	fallbackImg := "image-missing"
+	if len(fallback) > 0 {
+		fallbackImg = fallback[0]
+	}
+
+	for _, source := range sources {
+		if strings.Contains(source, "/") {
+			if _, err := os.Stat(source); err == nil {
+				return source
+			}
+			continue
+		}
+
+		theme, err := gtk.IconThemeGetDefault()
+		if err == nil && theme.HasIcon(source) {
+			return source
+		}
+	}
+
+	return fallbackImg
 }

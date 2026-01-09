@@ -99,7 +99,7 @@ func RemoveApp(address string, appState *state.State) {
 	}
 
 	className := item.ClassName
-	if item.Instances == 1 && !slices.Contains(*appState.GetPinned(), className) {
+	if len(item.Windows) == 1 && !slices.Contains(*appState.GetPinned(), className) {
 		item.Remove()
 		return
 	}

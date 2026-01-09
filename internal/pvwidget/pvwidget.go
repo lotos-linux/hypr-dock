@@ -125,7 +125,7 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 
 			closeBtn.Connect("button-press-event", func() {
 				go ipc.Hyprctl("dispatch closewindow address:" + window.Address)
-				if item.Instances == 1 {
+				if len(item.Windows) == 1 {
 					go ipc.DispatchEvent("hd>>focus-window")
 					return
 				}

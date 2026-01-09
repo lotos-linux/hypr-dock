@@ -57,17 +57,19 @@ func previewControl(item *item.Item, appState *state.State) {
 	}, true)
 
 	leftClick(item.Button, func(e *gdk.Event) {
-		if item.Instances == 0 {
+		instances := len(item.Windows)
+
+		if instances == 0 {
 			item.App.Run()
 		}
-		if item.Instances == 1 {
+		if instances == 1 {
 			client, ok := utils.GetSingleValue(item.Windows)
 			if ok {
 				ipc.Hyprctl("dispatch focuswindow address:" + client.Address)
 				ipc.DispatchEvent("hd>>focus-window")
 			}
 		}
-		if item.Instances > 1 {
+		if instances > 1 {
 			if !pv.GetActive() {
 				showTimer.Run(0, show)
 				pv.SetCurrentClass(item.ClassName)
@@ -76,7 +78,8 @@ func previewControl(item *item.Item, appState *state.State) {
 	})
 
 	item.Button.Connect("enter-notify-event", func() {
-		if item.Instances == 0 {
+		instances := len(item.Windows)
+		if instances == 0 {
 			return
 		}
 
@@ -97,7 +100,8 @@ func previewControl(item *item.Item, appState *state.State) {
 	})
 
 	item.Button.Connect("leave-notify-event", func() {
-		if item.Instances == 0 {
+		instances := len(item.Windows)
+		if instances == 0 {
 			return
 		}
 
@@ -112,16 +116,18 @@ func defaultControl(item *item.Item, appState *state.State) {
 	settings := appState.GetSettings()
 
 	leftClick(item.Button, func(e *gdk.Event) {
-		if item.Instances == 0 {
+		instances := len(item.Windows)
+
+		if instances == 0 {
 			item.App.Run()
 		}
-		if item.Instances == 1 {
+		if instances == 1 {
 			client, ok := utils.GetSingleValue(item.Windows)
 			if ok {
 				ipc.Hyprctl("dispatch focuswindow address:" + client.Address)
 			}
 		}
-		if item.Instances > 1 {
+		if instances > 1 {
 			menu, err := item.WindowsMenu()
 			if err != nil {
 				log.Println(err)

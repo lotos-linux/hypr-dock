@@ -17,7 +17,6 @@ import (
 )
 
 type Item struct {
-	Instances      int
 	Windows        map[string]ipc.Client
 	App            *desktop.App
 	ClassName      string
@@ -75,7 +74,6 @@ func New(className string, settings settings.Settings) (*Item, error) {
 		Button:         button,
 		ButtonBox:      item,
 		App:            app,
-		Instances:      0,
 		ClassName:      className,
 		List:           nil,
 		PinnedList:     nil,
@@ -87,16 +85,16 @@ func (item *Item) RemoveLastInstance(windowAddress string, settings settings.Set
 		item.IndicatorImage.Destroy()
 	}
 
-	newImage, err := indicator.New(item.Instances-1, settings)
+	delete(item.Windows, windowAddress)
+	instances := len(item.Windows)
+
+	newImage, err := indicator.New(instances, settings)
 	if err == nil {
 		appendInducator(item.ButtonBox, newImage, settings.Position)
 	}
-
-	item.Instances -= 1
-	delete(item.Windows, windowAddress)
 	item.IndicatorImage = newImage
 
-	if item.Instances == 0 && settings.Preview != "none" {
+	if instances == 0 && settings.Preview != "none" {
 		item.Button.SetTooltipText(item.App.GetName())
 	}
 }
@@ -106,16 +104,18 @@ func (item *Item) UpdateState(ipcClient ipc.Client, settings settings.Settings) 
 		item.IndicatorImage.Destroy()
 	}
 
-	indicatorImage, err := indicator.New(item.Instances+1, settings)
+	item.Windows[ipcClient.Address] = ipcClient
+	instances := len(item.Windows)
+
+	indicatorImage, err := indicator.New(instances, settings)
 	if err == nil {
 		appendInducator(item.ButtonBox, indicatorImage, settings.Position)
 	}
 
-	item.Windows[ipcClient.Address] = ipcClient
 	item.IndicatorImage = indicatorImage
-	item.Instances += 1
 
-	if item.Instances != 0 && settings.Preview != "none" {
+	log.Println(instances, settings.Preview)
+	if instances != 0 && settings.Preview != "none" {
 		item.Button.SetTooltipText("")
 	}
 }
@@ -128,7 +128,7 @@ func (item *Item) TogglePin(settings settings.Settings) {
 
 	if item.IsPinned() {
 		utils.RemoveFromSliceByValue(item.PinnedList, item.ClassName)
-		if item.Instances == 0 {
+		if len(item.Windows) == 0 {
 			item.ButtonBox.Destroy()
 			delete(item.List, item.ClassName)
 		}

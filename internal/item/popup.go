@@ -41,7 +41,7 @@ func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
 
 	AddWindowsItemToMenu(menu, item.Windows, app)
 
-	if item.Instances != 0 {
+	if len(item.Windows) != 0 {
 		separator, err := gtk.SeparatorMenuItemNew()
 		if err == nil {
 			menu.Append(separator)
@@ -132,12 +132,14 @@ func AddWindowsItemToMenu(menu *gtk.Menu, windows map[string]ipc.Client, app *de
 func BuildLaunchMenuItem(item *Item) (*gtk.MenuItem, error) {
 	app := item.App
 
-	if item.Instances != 0 && app.GetSingleWindow() {
+	instances := len(item.Windows)
+
+	if instances != 0 && app.GetSingleWindow() {
 		return nil, errors.New("")
 	}
 
 	labelText := app.GetName()
-	if item.Instances != 0 {
+	if instances != 0 {
 		labelText = "New Window - " + labelText
 	}
 

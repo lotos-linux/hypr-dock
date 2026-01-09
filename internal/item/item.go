@@ -18,7 +18,7 @@ import (
 
 type Item struct {
 	Instances      int
-	Windows        []map[string]string
+	Windows        map[string]ipc.Client
 	App            *desktop.App
 	ClassName      string
 	Button         *gtk.Button
@@ -62,7 +62,25 @@ func New(className string, settings settings.Settings) (*Item, error) {
 
 		button.SetTooltipText(app.GetName())
 
-		utils.SetCursorPointer(button.ToWidget())
+		display, err := gdk.DisplayGetDefault()
+		if err == nil {
+			pointer, _ := gdk.CursorNewFromName(display, "pointer")
+			arrow, _ := gdk.CursorNewFromName(display, "default")
+
+			button.Connect("enter-notify-event", func() {
+				win, _ := button.GetWindow()
+				if win != nil {
+					win.SetCursor(pointer)
+				}
+			})
+
+			button.Connect("leave-notify-event", func() {
+				win, _ := button.GetWindow()
+				if win != nil {
+					win.SetCursor(arrow)
+				}
+			})
+		}
 
 		item.Add(button)
 	} else {
@@ -70,6 +88,7 @@ func New(className string, settings settings.Settings) (*Item, error) {
 	}
 
 	return &Item{
+		Windows:        make(map[string]ipc.Client),
 		IndicatorImage: indicatorImage,
 		Button:         button,
 		ButtonBox:      item,
@@ -81,7 +100,7 @@ func New(className string, settings settings.Settings) (*Item, error) {
 	}, nil
 }
 
-func (item *Item) RemoveLastInstance(windowIndex int, settings settings.Settings) {
+func (item *Item) RemoveLastInstance(windowAddress string, settings settings.Settings) {
 	if item.IndicatorImage != nil {
 		item.IndicatorImage.Destroy()
 	}
@@ -92,7 +111,7 @@ func (item *Item) RemoveLastInstance(windowIndex int, settings settings.Settings
 	}
 
 	item.Instances -= 1
-	item.Windows = utils.RemoveFromSlice(item.Windows, windowIndex)
+	delete(item.Windows, windowAddress)
 	item.IndicatorImage = newImage
 
 	if item.Instances == 0 && settings.Preview != "none" {
@@ -101,22 +120,16 @@ func (item *Item) RemoveLastInstance(windowIndex int, settings settings.Settings
 }
 
 func (item *Item) UpdateState(ipcClient ipc.Client, settings settings.Settings) {
-	appWindow := map[string]string{
-		"Address": ipcClient.Address,
-		"Title":   ipcClient.Title,
-	}
-
 	if item.IndicatorImage != nil {
 		item.IndicatorImage.Destroy()
 	}
 
 	indicatorImage, err := indicator.New(item.Instances+1, settings)
 	if err == nil {
-		// item.ButtonBox.Add(indicatorImage)
 		appendInducator(item.ButtonBox, indicatorImage, settings.Position)
 	}
 
-	item.Windows = append(item.Windows, appWindow)
+	item.Windows[ipcClient.Address] = ipcClient
 	item.IndicatorImage = indicatorImage
 	item.Instances += 1
 

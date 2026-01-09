@@ -94,14 +94,17 @@ func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
 		log.Println(err)
 	}
 
-	if item.Instances == 1 {
-		closeMenuItem, err := BuildContextItem("Close", func() {
-			ipc.Hyprctl("dispatch closewindow address:" + item.Windows[0]["Address"])
-		}, "close-symbolic")
-		if err == nil {
-			menu.Append(closeMenuItem)
-		} else {
-			log.Println(err)
+	if len(item.Windows) == 1 {
+		client, ok := utils.GetSingleValue(item.Windows)
+		if ok {
+			closeMenuItem, err := BuildContextItem("Close", func() {
+				ipc.Hyprctl("dispatch closewindow address:" + client.Address)
+			}, "close-symbolic")
+			if err == nil {
+				menu.Append(closeMenuItem)
+			} else {
+				log.Println(err)
+			}
 		}
 	}
 
@@ -111,10 +114,10 @@ func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
 	return menu, nil
 }
 
-func AddWindowsItemToMenu(menu *gtk.Menu, windows []map[string]string, app *desktop.App) {
+func AddWindowsItemToMenu(menu *gtk.Menu, windows map[string]ipc.Client, app *desktop.App) {
 	for _, window := range windows {
-		menuItem, err := BuildContextItem(window["Title"], func() {
-			go ipc.Hyprctl("dispatch focuswindow address:" + window["Address"])
+		menuItem, err := BuildContextItem(window.Title, func() {
+			go ipc.Hyprctl("dispatch focuswindow address:" + window.Address)
 		}, app.GetIcon())
 
 		if err != nil {

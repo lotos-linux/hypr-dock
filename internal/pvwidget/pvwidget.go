@@ -74,7 +74,7 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 			continue
 		}
 
-		label, err := gtk.LabelNew(window["Title"])
+		label, err := gtk.LabelNew(window.Title)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -83,7 +83,7 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 		label.SetEllipsize(pango.ELLIPSIZE_END)
 		label.SetXAlign(0)
 		label.SetHExpand(true)
-		label.SetTooltipText(window["Title"])
+		label.SetTooltipText(window.Title)
 
 		iconName := utils.GetFirstAvailableImage([]string{
 			"close",
@@ -101,7 +101,7 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 		utils.AddStyle(closeBtn, "#close-btn {padding: 0;}")
 
 		eventBox.Connect("button-press-event", func(eb *gtk.EventBox, e *gdk.Event) {
-			go ipc.Hyprctl("dispatch focuswindow address:" + window["Address"])
+			go ipc.Hyprctl("dispatch focuswindow address:" + window.Address)
 			go ipc.DispatchEvent("hd>>focus-window")
 		})
 
@@ -112,7 +112,7 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 
 		utils.SetCursorPointer(eventBox.ToWidget())
 
-		stream, err := hysc.StreamNew(window["Address"])
+		stream, err := hysc.StreamNew(window.Address)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -124,7 +124,7 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 			}
 
 			closeBtn.Connect("button-press-event", func() {
-				go ipc.Hyprctl("dispatch closewindow address:" + window["Address"])
+				go ipc.Hyprctl("dispatch closewindow address:" + window.Address)
 				if item.Instances == 1 {
 					go ipc.DispatchEvent("hd>>focus-window")
 					return

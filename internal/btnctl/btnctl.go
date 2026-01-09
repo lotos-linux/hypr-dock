@@ -2,6 +2,7 @@ package btnctl
 
 import (
 	"hypr-dock/internal/item"
+	"hypr-dock/internal/pkg/utils"
 	"hypr-dock/internal/state"
 	"hypr-dock/pkg/ipc"
 	"log"
@@ -60,8 +61,11 @@ func previewControl(item *item.Item, appState *state.State) {
 			item.App.Run()
 		}
 		if item.Instances == 1 {
-			ipc.Hyprctl("dispatch focuswindow address:" + item.Windows[0]["Address"])
-			ipc.DispatchEvent("hd>>focus-window")
+			client, ok := utils.GetSingleValue(item.Windows)
+			if ok {
+				ipc.Hyprctl("dispatch focuswindow address:" + client.Address)
+				ipc.DispatchEvent("hd>>focus-window")
+			}
 		}
 		if item.Instances > 1 {
 			if !pv.GetActive() {
@@ -112,7 +116,10 @@ func defaultControl(item *item.Item, appState *state.State) {
 			item.App.Run()
 		}
 		if item.Instances == 1 {
-			ipc.Hyprctl("dispatch focuswindow address:" + item.Windows[0]["Address"])
+			client, ok := utils.GetSingleValue(item.Windows)
+			if ok {
+				ipc.Hyprctl("dispatch focuswindow address:" + client.Address)
+			}
 		}
 		if item.Instances > 1 {
 			menu, err := item.WindowsMenu()

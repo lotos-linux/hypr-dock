@@ -92,7 +92,7 @@ func InitNewItemInClass(className string, appState *state.State) {
 }
 
 func RemoveApp(address string, appState *state.State) {
-	item, windowIndex, err := searchByAddress(address, appState)
+	item, err := searchByAddress(address, appState)
 	if err != nil {
 		log.Println(err)
 		return
@@ -104,29 +104,29 @@ func RemoveApp(address string, appState *state.State) {
 		return
 	}
 
-	item.RemoveLastInstance(windowIndex, appState.GetSettings())
+	item.RemoveLastInstance(address, appState.GetSettings())
 
 	appState.GetWindow().ShowAll()
 }
 
-func searchByAddress(address string, appState *state.State) (*item.Item, int, error) {
+func searchByAddress(address string, appState *state.State) (*item.Item, error) {
 	for _, item := range appState.GetList().GetMap() {
-		for windowIndex, window := range item.Windows {
-			if window["Address"] == address {
-				return item, windowIndex, nil
+		for _, window := range item.Windows {
+			if window.Address == address {
+				return item, nil
 			}
 		}
 	}
 
 	err := errors.New("Window not found: " + address)
-	return nil, 0, err
+	return nil, err
 }
 
 func ChangeWindowTitle(address string, title string, appState *state.State) {
 	for _, data := range appState.GetList().GetMap() {
 		for _, appWindow := range data.Windows {
-			if appWindow["Address"] == address {
-				appWindow["Title"] = title
+			if appWindow.Address == address {
+				appWindow.Title = title
 			}
 		}
 	}

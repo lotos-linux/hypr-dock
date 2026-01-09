@@ -114,7 +114,7 @@ func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
 	return menu, nil
 }
 
-func AddWindowsItemToMenu(menu *gtk.Menu, windows map[string]ipc.Client, app *desktop.App) {
+func AddWindowsItemToMenu(menu *gtk.Menu, windows map[string]*ipc.Client, app *desktop.App) {
 	for _, window := range windows {
 		menuItem, err := BuildContextItem(window.Title, func() {
 			go ipc.Hyprctl("dispatch focuswindow address:" + window.Address)

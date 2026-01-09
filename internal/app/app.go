@@ -69,7 +69,7 @@ func InitNewItemInIPC(ipcClient ipc.Client, appState *state.State) {
 		InitNewItemInClass(className, appState)
 	}
 
-	list.Get(className).UpdateState(ipcClient, appState.GetSettings())
+	list.Get(className).AddWindow(ipcClient, appState.GetSettings())
 	appState.GetWindow().ShowAll()
 }
 
@@ -92,7 +92,7 @@ func InitNewItemInClass(className string, appState *state.State) {
 }
 
 func RemoveApp(address string, appState *state.State) {
-	item, err := searchByAddress(address, appState)
+	item, _, err := searchByAddress(address, appState)
 	if err != nil {
 		log.Println(err)
 		return
@@ -104,32 +104,31 @@ func RemoveApp(address string, appState *state.State) {
 		return
 	}
 
-	item.RemoveLastInstance(address, appState.GetSettings())
+	item.RemoveWindow(address, appState.GetSettings())
 
 	appState.GetWindow().ShowAll()
 }
 
-func searchByAddress(address string, appState *state.State) (*item.Item, error) {
+func searchByAddress(address string, appState *state.State) (*item.Item, *ipc.Client, error) {
 	for _, item := range appState.GetList().GetMap() {
-		for _, window := range item.Windows {
-			if window.Address == address {
-				return item, nil
-			}
+		client, exist := item.Windows[address]
+		if exist {
+			return item, client, nil
 		}
 	}
 
 	err := errors.New("Window not found: " + address)
-	return nil, err
+	return nil, nil, err
 }
 
 func ChangeWindowTitle(address string, title string, appState *state.State) {
-	for _, data := range appState.GetList().GetMap() {
-		for _, appWindow := range data.Windows {
-			if appWindow.Address == address {
-				appWindow.Title = title
-			}
-		}
+	_, client, err := searchByAddress(address, appState)
+	if err != nil {
+		log.Println(err)
+		return
 	}
+
+	client.Title = title
 }
 
 func addWindowMarginRule(app *gtk.Box, appState *state.State) {

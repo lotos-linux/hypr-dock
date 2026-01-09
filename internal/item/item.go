@@ -17,7 +17,7 @@ import (
 )
 
 type Item struct {
-	Windows        map[string]ipc.Client
+	Windows        map[string]*ipc.Client
 	App            *desktop.App
 	ClassName      string
 	Button         *gtk.Button
@@ -69,7 +69,7 @@ func New(className string, settings settings.Settings) (*Item, error) {
 	}
 
 	return &Item{
-		Windows:        make(map[string]ipc.Client),
+		Windows:        map[string]*ipc.Client{},
 		IndicatorImage: indicatorImage,
 		Button:         button,
 		ButtonBox:      item,
@@ -80,7 +80,7 @@ func New(className string, settings settings.Settings) (*Item, error) {
 	}, nil
 }
 
-func (item *Item) RemoveLastInstance(windowAddress string, settings settings.Settings) {
+func (item *Item) RemoveWindow(windowAddress string, settings settings.Settings) {
 	if item.IndicatorImage != nil {
 		item.IndicatorImage.Destroy()
 	}
@@ -99,12 +99,12 @@ func (item *Item) RemoveLastInstance(windowAddress string, settings settings.Set
 	}
 }
 
-func (item *Item) UpdateState(ipcClient ipc.Client, settings settings.Settings) {
+func (item *Item) AddWindow(ipcClient ipc.Client, settings settings.Settings) {
 	if item.IndicatorImage != nil {
 		item.IndicatorImage.Destroy()
 	}
 
-	item.Windows[ipcClient.Address] = ipcClient
+	item.Windows[ipcClient.Address] = &ipcClient
 	instances := len(item.Windows)
 
 	indicatorImage, err := indicator.New(instances, settings)
@@ -114,7 +114,6 @@ func (item *Item) UpdateState(ipcClient ipc.Client, settings settings.Settings) 
 
 	item.IndicatorImage = indicatorImage
 
-	log.Println(instances, settings.Preview)
 	if instances != 0 && settings.Preview != "none" {
 		item.Button.SetTooltipText("")
 	}
@@ -129,8 +128,7 @@ func (item *Item) TogglePin(settings settings.Settings) {
 	if item.IsPinned() {
 		utils.RemoveFromSliceByValue(item.PinnedList, item.ClassName)
 		if len(item.Windows) == 0 {
-			item.ButtonBox.Destroy()
-			delete(item.List, item.ClassName)
+			item.Remove()
 		}
 		log.Println("Remove:", item.ClassName)
 	} else {

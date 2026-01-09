@@ -107,40 +107,10 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (b
 
 		context, err := windowBox.GetStyleContext()
 		if err == nil {
-			eventBox.Connect("enter-notify-event", func() {
-				context.AddClass("hover")
-			})
-			eventBox.Connect("leave-notify-event", func(eb *gtk.EventBox, e *gdk.Event) {
-				event := gdk.EventCrossingNewFromEvent(e)
-				isInWindow := event.Detail() == 3 || event.Detail() == 0
-
-				if isInWindow {
-					context.RemoveClass("hover")
-				}
-			})
+			utils.SetAutoHover(eventBox.ToWidget(), context)
 		}
 
-		display, err := gdk.DisplayGetDefault()
-		if err == nil {
-			pointer, _ := gdk.CursorNewFromName(display, "pointer")
-			arrow, _ := gdk.CursorNewFromName(display, "default")
-
-			eventBox.Connect("enter-notify-event", func() {
-				win, _ := eventBox.GetWindow()
-				if win != nil {
-					win.SetCursor(pointer)
-				}
-			})
-
-			eventBox.Connect("leave-notify-event", func(eb *gtk.EventBox, e *gdk.Event) {
-				event := gdk.EventCrossingNewFromEvent(e)
-				win, _ := eventBox.GetWindow()
-
-				if win != nil && event.Detail() != 2 {
-					win.SetCursor(arrow)
-				}
-			})
-		}
+		utils.SetCursorPointer(eventBox.ToWidget())
 
 		stream, err := hysc.StreamNew(window["Address"])
 		if err != nil {

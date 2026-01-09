@@ -129,3 +129,44 @@ func GetFirstAvailableImage(sources []string, fallback ...string) string {
 
 	return fallbackImg
 }
+
+func SetCursorPointer(v *gtk.Widget) {
+	display, err := gdk.DisplayGetDefault()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	pointer, _ := gdk.CursorNewFromName(display, "pointer")
+	arrow, _ := gdk.CursorNewFromName(display, "default")
+
+	v.Connect("enter-notify-event", func() {
+		win, _ := v.GetWindow()
+		if win != nil {
+			win.SetCursor(pointer)
+		}
+	})
+
+	v.Connect("leave-notify-event", func(_ interface{}, e *gdk.Event) {
+		event := gdk.EventCrossingNewFromEvent(e)
+		win, _ := v.GetWindow()
+
+		if win != nil && event.Detail() != 2 {
+			win.SetCursor(arrow)
+		}
+	})
+}
+
+func SetAutoHover(v *gtk.Widget, context *gtk.StyleContext) {
+	v.Connect("enter-notify-event", func() {
+		context.AddClass("hover")
+	})
+	v.Connect("leave-notify-event", func(_ interface{}, e *gdk.Event) {
+		event := gdk.EventCrossingNewFromEvent(e)
+		isInWindow := event.Detail() == 3 || event.Detail() == 0
+
+		if isInWindow {
+			context.RemoveClass("hover")
+		}
+	})
+}

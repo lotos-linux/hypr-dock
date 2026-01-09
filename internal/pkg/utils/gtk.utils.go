@@ -3,7 +3,6 @@ package utils
 import (
 	"log"
 	"math"
-	"os"
 	"strings"
 
 	"github.com/gotk3/gotk3/gdk"
@@ -26,7 +25,7 @@ func CreateImage(source string, size int) (*gtk.Image, error) {
 			return CreateImage("image-missing", size)
 		}
 
-		return CreateImageFromPixbuf(pixbuf), nil
+		return gtk.ImageNewFromPixbuf(pixbuf)
 	}
 
 	// Create image in icon name
@@ -42,16 +41,7 @@ func CreateImage(source string, size int) (*gtk.Image, error) {
 		return CreateImage("image-missing", size)
 	}
 
-	return CreateImageFromPixbuf(pixbuf), nil
-}
-
-func CreateImageFromPixbuf(pixbuf *gdk.Pixbuf) *gtk.Image {
-	image, err := gtk.ImageNewFromPixbuf(pixbuf)
-	if err != nil {
-		log.Println("Error creating image from pixbuf:", err)
-		return nil
-	}
-	return image
+	return gtk.ImageNewFromPixbuf(pixbuf)
 }
 
 func AddStyle(widget gtk.IWidget, style string) (*gtk.CssProvider, error) {
@@ -116,30 +106,23 @@ func RemoveStyleProvider(widget *gtk.Box, provider *gtk.CssProvider) {
 	styleContext.RemoveProvider(provider)
 }
 
-func HasIcon(iconName string) bool {
-	theme, err := gtk.IconThemeGetDefault()
-	if err != nil {
-		return false
-	}
-	return theme.HasIcon(iconName)
-}
-
 func GetFirstAvailableImage(sources []string, fallback ...string) string {
 	fallbackImg := "image-missing"
 	if len(fallback) > 0 {
 		fallbackImg = fallback[0]
 	}
 
+	theme, err := gtk.IconThemeGetDefault()
+	if err != nil {
+		return fallbackImg
+	}
+
 	for _, source := range sources {
-		if strings.Contains(source, "/") {
-			if _, err := os.Stat(source); err == nil {
-				return source
-			}
-			continue
+		if strings.Contains(source, "/") && FileExists(source) {
+			return source
 		}
 
-		theme, err := gtk.IconThemeGetDefault()
-		if err == nil && theme.HasIcon(source) {
+		if theme.HasIcon(source) {
 			return source
 		}
 	}

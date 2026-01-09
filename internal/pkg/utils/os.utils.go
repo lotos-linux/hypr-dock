@@ -22,25 +22,32 @@ func LoadTextFile(path string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	lines := strings.Split(string(bytes), "\n")
+
 	var output []string
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line != "" {
 			output = append(output, line)
 		}
-
 	}
+
 	return output, nil
 }
 
 func TempDir() string {
-	if os.Getenv("TMPDIR") != "" {
-		return os.Getenv("TMPDIR")
-	} else if os.Getenv("TEMP") != "" {
-		return os.Getenv("TEMP")
-	} else if os.Getenv("TMP") != "" {
-		return os.Getenv("TMP")
+	envs := []string{
+		"TMPDIR",
+		"TEMP",
+		"TMP",
+	}
+
+	for _, env := range envs {
+		val := os.Getenv(env)
+		if val != "" {
+			return val
+		}
 	}
 	return "/tmp"
 }

@@ -124,24 +124,34 @@ func (item *Item) IsPinned() bool {
 }
 
 func (item *Item) TogglePin(settings settings.Settings) {
+	list := item.PinnedList
+	className := item.ClassName
 
-	if item.IsPinned() {
-		utils.RemoveFromSliceByValue(item.PinnedList, item.ClassName)
-		if len(item.Windows) == 0 {
-			item.Remove()
-		}
-		log.Println("Remove:", item.ClassName)
-	} else {
-		utils.AddToSlice(item.PinnedList, item.ClassName)
-		log.Println("Add:", item.ClassName)
+	pin := item.IsPinned()
+	running := len(item.Windows) > 0
+
+	if pin {
+		utils.RemoveFromSliceByValue(list, className)
+		log.Println("Remove:", className)
 	}
 
-	err := cfg.ChangeJsonPinnedApps(*item.PinnedList, settings.PinnedPath)
+	if pin && !running {
+		item.Remove()
+	}
+
+	if !pin {
+		utils.AddToSlice(list, className)
+		log.Println("Add:", className)
+	}
+
+	file := settings.PinnedPath
+	err := cfg.ChangeJsonPinnedApps(*list, file)
 	if err != nil {
-		log.Println("Error: ", err)
-	} else {
-		log.Println("File", settings.PinnedPath, "saved successfully!", item.ClassName)
+		log.Println("Error:", err)
+		return
 	}
+
+	log.Printf("File %s saved successfully! (%s)", file, className)
 }
 
 func (item *Item) Remove() {

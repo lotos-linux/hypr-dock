@@ -27,6 +27,9 @@ type PV struct {
 
 	className string
 	popup     *popup.Popup
+
+	focusListener *ipc.EventListener
+	closeListener *ipc.EventListener
 }
 
 func New(settings settings.Settings) *PV {
@@ -54,13 +57,13 @@ func (pv *PV) Show(item *item.Item, settings settings.Settings) {
 		pv.SetActive(false)
 	}
 
-	ipc.AddEventListener("hd>>focus-window", func(e string) {
+	pv.focusListener = ipc.AddEventListener("hd>>focus-window", func(e string) {
 		pv.showTimer.Stop()
 		hide()
 	}, true)
 
 	if settings.Position == "top" || settings.Position == "bottom" {
-		ipc.AddEventListener("hd>>close-window", func(e string) {
+		pv.closeListener = ipc.AddEventListener("hd>>close-window", func(e string) {
 			eventDetail := strings.TrimPrefix(e, "hd>>close-window>>")
 			w, _ := strconv.Atoi(eventDetail)
 			x, y, _ := getCord(item.Button, settings)
@@ -102,6 +105,14 @@ func (pv *PV) Show(item *item.Item, settings settings.Settings) {
 
 func (pv *PV) Hide() {
 	pv.popup.Close()
+
+	if pv.focusListener != nil {
+		pv.focusListener.Remove()
+	}
+
+	if pv.closeListener != nil {
+		pv.closeListener.Remove()
+	}
 }
 
 func (pv *PV) Change(item *item.Item, settings settings.Settings) {
@@ -181,16 +192,10 @@ func getCord(v *gtk.Button, settings settings.Settings) (int, int, error) {
 	var y int
 
 	switch pos {
-	case "bottom":
+	case "bottom", "top":
 		x = dock.X + v.GetAllocation().GetX() + v.GetAllocatedWidth()/2
 		y = margin
-	case "left":
-		x = margin
-		y = dock.Y + v.GetAllocation().GetY() + v.GetAllocatedHeight()/2
-	case "top":
-		x = dock.X + v.GetAllocation().GetX() + v.GetAllocatedWidth()/2
-		y = margin
-	case "right":
+	case "left", "right":
 		x = margin
 		y = dock.Y + v.GetAllocation().GetY() + v.GetAllocatedHeight()/2
 	}
@@ -213,13 +218,12 @@ func setCord(w, h int, item *item.Item, settings settings.Settings, callBack fun
 	case "bottom":
 		startx = "left"
 		starty = "bottom"
+
 	case "right":
 		startx = "right"
 		starty = "top"
-	case "left":
-		startx = "left"
-		starty = "top"
-	case "top":
+
+	case "left", "top":
 		startx = "left"
 		starty = "top"
 	}

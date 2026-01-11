@@ -1,46 +1,12 @@
-package btnctl
+package defaultcontrol
 
 import (
-	"hypr-dock/internal/item"
 	"hypr-dock/internal/layering"
 	"hypr-dock/internal/state"
-	"hypr-dock/pkg/ipc"
-	"log"
 
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
 )
-
-func connectContextMenu(item *item.Item, appState *state.State) {
-	settings := appState.GetSettings()
-
-	item.Button.Connect("button-release-event", func(button *gtk.Button, e *gdk.Event) {
-		event := gdk.EventButtonNewFromEvent(e)
-		if event.Button() == 3 {
-			menu, err := item.ContextMenu(settings)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			win, zone, err := getActivateZone(item.Button, settings.ContextPos, settings.Position)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			firstg, secondg := getGravity(settings.Position)
-			menu.PopupAtRect(win, zone, firstg, secondg, nil)
-			ipc.DispatchEvent("hd>>open-context")
-			menu.Connect("deactivate", func() {
-				ipc.DispatchEvent("hd>>close-context")
-				dispather(appState, item.Button)
-			})
-
-			return
-		}
-	})
-}
 
 func leftClick(btn *gtk.Button, handler func(e *gdk.Event)) {
 	btn.Connect("button-release-event", func(button *gtk.Button, e *gdk.Event) {

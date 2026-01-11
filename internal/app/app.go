@@ -65,7 +65,11 @@ func renderItems(appState *state.State) {
 func InitNewItemInIPC(ipcClient ipc.Client, appState *state.State) {
 	list := appState.GetList()
 	className := ipcClient.Class
-	if !slices.Contains(*appState.GetPinned(), className) && list.Get(className) == nil {
+
+	pin := slices.Contains(*appState.GetPinned(), className)
+	added := list.Get(className) != nil
+
+	if !pin && !added {
 		InitNewItemInClass(className, appState)
 	}
 
@@ -98,8 +102,10 @@ func RemoveApp(address string, appState *state.State) {
 		return
 	}
 
-	className := item.ClassName
-	if len(item.Windows) == 1 && !slices.Contains(*appState.GetPinned(), className) {
+	lastWindow := len(item.Windows) == 1
+	pin := slices.Contains(*appState.GetPinned(), item.ClassName)
+
+	if lastWindow && !pin {
 		item.Remove()
 		return
 	}

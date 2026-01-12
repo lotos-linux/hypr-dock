@@ -3,6 +3,7 @@ package switcher
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
@@ -179,9 +180,14 @@ func (s *Switcher) createWindowWidget(idx int, mon ipc.Monitor, scale float64, f
 	if err == nil {
 		// Check if we have a cached screenshot for this window
 		fingerprint := getWindowFingerprint(c)
-		if cachedPixbuf, exists := s.screenshotCache[fingerprint]; exists {
+		cached, exists := s.screenshotCache[fingerprint]
+
+		// Cache is valid if it exists AND is less than 5 seconds old
+		cacheValid := exists && time.Since(cached.Timestamp) < 5*time.Second
+
+		if cacheValid {
 			// Reuse cached screenshot (instant!)
-			logTiming("[SCREENSHOT] Using cached screenshot for: %s", c.Address)
+			logTiming("[SCREENSHOT] Using cached screenshot for: %s (age: %.1fs)", c.Address, time.Since(cached.Timestamp).Seconds())
 			glib.IdleAdd(func() {
 				// Check generation
 				if s.renderGen != currentGen {
@@ -190,13 +196,16 @@ func (s *Switcher) createWindowWidget(idx int, mon ipc.Monitor, scale float64, f
 
 				// Replace icon with cached screenshot
 				centerBox.Remove(icon)
-				img, _ := gtk.ImageNewFromPixbuf(cachedPixbuf)
+				img, _ := gtk.ImageNewFromPixbuf(cached.Pixbuf)
 				img.SetHAlign(gtk.ALIGN_CENTER)
 				centerBox.Add(img)
 				overlay.ShowAll()
 			})
 		} else {
 			// Capture new screenshot and cache it
+			if exists {
+				logTiming("[SCREENSHOT] Cache expired for: %s (age: %.1fs), re-capturing", c.Address, time.Since(cached.Timestamp).Seconds())
+			}
 			s.capturePreviewAsync(c, scaledW, scaledH, centerBox, overlay, icon.ToWidget(), iconName, currentGen, sem, fingerprint)
 		}
 	} else {

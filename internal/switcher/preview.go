@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/glib"
@@ -122,9 +123,12 @@ func (s *Switcher) capturePreviewAsync(
 	stream.SetFixedSize(scaledW, scaledH)
 	stream.SetBorderRadius(4)
 	stream.OnReady(func(sz *hysc.Size) {
-		// Cache the screenshot pixbuf for future use
+		// Cache the screenshot pixbuf with timestamp for future use
 		if pixbuf := stream.GetPixbuf(); pixbuf != nil {
-			s.screenshotCache[fingerprint] = pixbuf
+			s.screenshotCache[fingerprint] = &CachedScreenshot{
+				Pixbuf:    pixbuf,
+				Timestamp: time.Now(),
+			}
 			logTiming("[SCREENSHOT] Cached screenshot for: %s", client.Address)
 		}
 	})

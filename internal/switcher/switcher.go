@@ -28,19 +28,25 @@ type Switcher struct {
 	monitorMap map[int]ipc.Monitor
 
 	// State
-	selected        int                    // Index in s.clients
-	widgets         []*gtk.Widget          // Map client index to its widget
-	app             *wl.App                // Single wayland app connection
-	debugBox        *gtk.EventBox          // For visual debugging of Alt key
-	altWasHeld      bool                   // State for polling
-	startTime       time.Time              // Grace period
-	config          Config                 // Loaded config
-	screenshotCache map[string]*gdk.Pixbuf // Cache screenshots by window fingerprint
+	selected        int                          // Index in s.clients
+	widgets         []*gtk.Widget                // Map client index to its widget
+	app             *wl.App                      // Single wayland app connection
+	debugBox        *gtk.EventBox                // For visual debugging of Alt key
+	altWasHeld      bool                         // State for polling
+	startTime       time.Time                    // Grace period
+	config          Config                       // Loaded config
+	screenshotCache map[string]*CachedScreenshot // Cache screenshots with timestamp
 
 	// Daemon State
 	visible       bool
 	iconPathCache map[string]string
 	renderGen     int
+}
+
+// CachedScreenshot stores a screenshot with its capture time
+type CachedScreenshot struct {
+	Pixbuf    *gdk.Pixbuf
+	Timestamp time.Time
 }
 
 func Run() {
@@ -63,7 +69,7 @@ func Run() {
 		config:          LoadConfig(),
 		visible:         true,
 		iconPathCache:   make(map[string]string),
-		screenshotCache: make(map[string]*gdk.Pixbuf),
+		screenshotCache: make(map[string]*CachedScreenshot),
 	}
 	logTiming("Switcher instance created")
 

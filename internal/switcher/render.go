@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 	"github.com/gotk3/gotk3/pango"
 
@@ -173,10 +174,31 @@ func (s *Switcher) createWindowWidget(idx int, mon ipc.Monitor, scale float64, f
 	// Load icon asynchronously
 	s.loadIconAsync(icon, iconName, iconSize, currentGen)
 
-	// 3. Try to upgrade to Screenshot asynchronously
+	// 3. Try to upgrade to Screenshot
 	_, err := hysc.StreamNew(c.Address)
 	if err == nil {
-		s.capturePreviewAsync(c, scaledW, scaledH, centerBox, overlay, icon.ToWidget(), iconName, currentGen, sem)
+		// Check if we have a cached screenshot for this window
+		fingerprint := getWindowFingerprint(c)
+		if cachedPixbuf, exists := s.screenshotCache[fingerprint]; exists {
+			// Reuse cached screenshot (instant!)
+			logTiming("[SCREENSHOT] Using cached screenshot for: %s", c.Address)
+			glib.IdleAdd(func() {
+				// Check generation
+				if s.renderGen != currentGen {
+					return
+				}
+
+				// Replace icon with cached screenshot
+				centerBox.Remove(icon)
+				img, _ := gtk.ImageNewFromPixbuf(cachedPixbuf)
+				img.SetHAlign(gtk.ALIGN_CENTER)
+				centerBox.Add(img)
+				overlay.ShowAll()
+			})
+		} else {
+			// Capture new screenshot and cache it
+			s.capturePreviewAsync(c, scaledW, scaledH, centerBox, overlay, icon.ToWidget(), iconName, currentGen, sem, fingerprint)
+		}
 	} else {
 		log.Printf("Failed to create stream for %s: %v", c.Address, err)
 	}

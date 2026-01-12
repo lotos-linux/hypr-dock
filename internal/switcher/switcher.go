@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
 
 	"hypr-dock/pkg/ipc"
@@ -27,13 +28,14 @@ type Switcher struct {
 	monitorMap map[int]ipc.Monitor
 
 	// State
-	selected   int           // Index in s.clients
-	widgets    []*gtk.Widget // Map client index to its widget
-	app        *wl.App       // Single wayland app connection
-	debugBox   *gtk.EventBox // For visual debugging of Alt key
-	altWasHeld bool          // State for polling
-	startTime  time.Time     // Grace period
-	config     Config        // Loaded config
+	selected        int                    // Index in s.clients
+	widgets         []*gtk.Widget          // Map client index to its widget
+	app             *wl.App                // Single wayland app connection
+	debugBox        *gtk.EventBox          // For visual debugging of Alt key
+	altWasHeld      bool                   // State for polling
+	startTime       time.Time              // Grace period
+	config          Config                 // Loaded config
+	screenshotCache map[string]*gdk.Pixbuf // Cache screenshots by window fingerprint
 
 	// Daemon State
 	visible       bool
@@ -53,14 +55,15 @@ func Run() {
 	logTiming("Creating Switcher instance")
 	// Create Switcher instance
 	s := &Switcher{
-		selected:      0,
-		workspaceMap:  make(map[int][]int),
-		monitorMap:    make(map[int]ipc.Monitor),
-		altWasHeld:    true, // ASSUME Held on start
-		startTime:     time.Now(),
-		config:        LoadConfig(),
-		visible:       true,
-		iconPathCache: make(map[string]string),
+		selected:        0,
+		workspaceMap:    make(map[int][]int),
+		monitorMap:      make(map[int]ipc.Monitor),
+		altWasHeld:      true, // ASSUME Held on start
+		startTime:       time.Now(),
+		config:          LoadConfig(),
+		visible:         true,
+		iconPathCache:   make(map[string]string),
+		screenshotCache: make(map[string]*gdk.Pixbuf),
 	}
 	logTiming("Switcher instance created")
 

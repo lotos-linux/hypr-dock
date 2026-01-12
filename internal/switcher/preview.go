@@ -111,6 +111,7 @@ func (s *Switcher) capturePreviewAsync(
 	iconName string,
 	currentGen int,
 	sem chan struct{},
+	fingerprint string, // Window fingerprint for caching
 ) {
 	stream, err := hysc.StreamNew(client.Address)
 	if err != nil {
@@ -121,7 +122,11 @@ func (s *Switcher) capturePreviewAsync(
 	stream.SetFixedSize(scaledW, scaledH)
 	stream.SetBorderRadius(4)
 	stream.OnReady(func(sz *hysc.Size) {
-		// Silent handler to avoid warnings
+		// Cache the screenshot pixbuf for future use
+		if pixbuf := stream.GetPixbuf(); pixbuf != nil {
+			s.screenshotCache[fingerprint] = pixbuf
+			logTiming("[SCREENSHOT] Cached screenshot for: %s", client.Address)
+		}
 	})
 
 	logTiming("[SCREENSHOT] Starting async capture for: %s", client.Address)

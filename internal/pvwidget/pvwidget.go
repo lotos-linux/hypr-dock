@@ -17,10 +17,11 @@ import (
 )
 
 type Widget struct {
-	readyCount   int
-	totalWidth   int
-	commonHeight int
-	mutex        sync.Mutex
+	readyCount    int
+	expectedCount int
+	totalWidth    int
+	commonHeight  int
+	mutex         sync.Mutex
 	*gtk.Box
 	settings settings.Settings
 	item     *item.Item
@@ -41,12 +42,24 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (*
 		onReady:  onReady,
 	}
 
+	log.Printf("DEBUG PV: Creating preview for %s, window count: %d", item.ClassName, len(item.Windows))
+	for addr, win := range item.Windows {
+		log.Printf("  Window: %s, Title: %s", addr, win.Title)
+	}
+
+	successCount := 0
 	for _, window := range item.Windows {
 		err := widget.createWindowWidget(window)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
+		successCount++
+	}
+	widget.expectedCount = successCount
+
+	if successCount == 0 {
+		return nil, fmt.Errorf("failed to create any window widgets")
 	}
 
 	return widget, nil
@@ -121,10 +134,16 @@ func (w *Widget) createWindowWidget(window *ipc.Client) error {
 	}
 	utils.SetCursorPointer(eventBox.ToWidget())
 
-	stream, err := hysc.StreamNew(window.Address)
+	var stream *hysc.Stream
+	log.Printf("DEBUG: Attempting to create stream for window: %s (address: %s)", window.Title, window.Address)
+
+	stream, err = hysc.StreamNew(window.Address)
 	if err != nil {
+		log.Printf("ERROR: Stream creation failed for %s: %v", window.Address, err)
 		return err
 	}
+
+	log.Printf("DEBUG: Stream created successfully for %s", window.Address)
 
 	stream.OnReady(func(s *hysc.Size) {
 		if s == nil {
@@ -156,8 +175,8 @@ func (w *Widget) createWindowWidget(window *ipc.Client) error {
 			w.readyCount++
 			w.commonHeight = s.H
 
-			if w.readyCount == len(w.item.Windows) {
-				w.totalWidth = w.totalWidth + w.settings.ContextPos*(len(w.item.Windows)-1) + 2*padding*len(w.item.Windows)
+			if w.readyCount == w.expectedCount {
+				w.totalWidth = w.totalWidth + w.settings.ContextPos*(w.expectedCount-1) + 2*padding*w.expectedCount
 				w.commonHeight = w.commonHeight + 2*padding + 20
 
 				w.onReady(w.totalWidth, w.commonHeight)

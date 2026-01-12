@@ -10,7 +10,7 @@ require (
 	github.com/goccy/go-json v0.10.3
 	github.com/gotk3/gotk3 v0.6.3
 	github.com/hashicorp/go-hclog v1.6.3
-	github.com/pdf/go-wayland v0.0.2
+	github.com/pdf/go-wayland v0.0.3
 	github.com/pkg/errors v0.9.1
 	github.com/tailscale/hujson v0.0.0-20250605163823-992244df8c5a
 	golang.org/x/sys v0.33.0

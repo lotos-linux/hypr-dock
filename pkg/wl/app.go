@@ -148,13 +148,13 @@ func (a *App) CaptureFrame(handle uint64) (*image.NRGBA, error) {
 
 	a.log.Debug("Available buffer formats:", "count", len(formats))
 	for i, format := range formats {
-	    a.log.Debug(fmt.Sprintf("Format %d:", i),
-	        "width", format.Width,
-	        "height", format.Height,
-	        "stride", format.Stride,
-	        "format", format.Format,
-	        "shm_format_name", client.ShmFormat(format.Format).String(),
-	    )
+		a.log.Debug(fmt.Sprintf("Format %d:", i),
+			"width", format.Width,
+			"height", format.Height,
+			"stride", format.Stride,
+			"format", format.Format,
+			"shm_format_name", client.ShmFormat(format.Format).String(),
+		)
 	}
 
 	var selected *HyprlandToplevelExportFrameV1BufferEvent
@@ -306,7 +306,14 @@ func (a *App) handleRegistryGlobal(evt client.RegistryGlobalEvent) {
 		a.shm = shm
 	case `hyprland_toplevel_export_manager_v1`:
 		tl := NewHyprlandToplevelExportManagerV1(a.display.Context())
-		if err := a.registry.Bind(evt.Name, evt.Interface, evt.Version, tl); err != nil {
+
+		// Caps at 2 since that is what the XML/generated code supports
+		bindVer := evt.Version
+		if bindVer > 2 {
+			bindVer = 2
+		}
+
+		if err := a.registry.Bind(evt.Name, evt.Interface, bindVer, tl); err != nil {
 			a.log.Error(`failed binding toplevel export manager`, `err`, err)
 			return
 		}

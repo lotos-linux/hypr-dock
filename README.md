@@ -28,6 +28,22 @@ make build
 make install
 ```
 
+> **Note**: If you are building from source and encounter protocol errors, you may need to manually update the protocol definition and regenerate the bindings:
+> ```bash
+> # Update Go Wayland library
+> go get -u github.com/pdf/go-wayland@latest
+> go mod tidy
+> 
+> # Install/Update the scanner tool
+> go install github.com/rajveermalviya/go-wayland/cmd/go-wayland-scanner@latest
+> 
+> # Download latest protocol XML
+> wget https://raw.githubusercontent.com/hyprwm/hyprland-protocols/main/protocols/hyprland-toplevel-export-v1.xml
+> 
+> # Generate Go code
+> $(go env GOPATH)/bin/go-wayland-scanner -i hyprland-toplevel-export-v1.xml -o pkg/wl/hyprland_toplevel_export.go -pkg wl
+> ```
+
 ### Uninstall
 ```bash
 make uninstall
@@ -62,7 +78,9 @@ The default configuration and themes are installed in `~/.config/hypr-dock`
 ```text
 exec-once = hypr-dock
 bind = Super, D, exec, hypr-dock
+permission = /usr/bin/hypr-dock, screencopy, allow
 ```
+For more information on permissions, see: [Hyprland Wiki - Permissions](https://wiki.hypr.land/Configuring/Permissions/)
 
 #### The dock supports only one running instance, so launching it again will close the previous instance.
 
@@ -199,3 +217,7 @@ You can edit it manually. But why? ¯\_(ツ)_/¯
 - [github.com/dlasky/gotk3-layershell](https://github.com/dlasky/gotk3-layershell) v0.0.0-20240515133811-5c5115f0d774
 - [github.com/goccy/go-json](https://github.com/goccy/go-json) v0.10.3
 - [github.com/gotk3/gotk3](https://github.com/gotk3/gotk3) v0.6.3
+## Recent Fixes (2026-01-12)
+- **Protocol Compatibility**: Fixed issue where previews failed on newer Hyprland versions by enabling correct protocol version negotiation.
+- **Multi-Window Stability**: Resolved a bug where one failing window capture would prevent all other previews from showing.
+- **Multi-Monitor Support**: Fixed invisible popups/menus on multi-monitor setups by implementing correct monitor-relative positioning.

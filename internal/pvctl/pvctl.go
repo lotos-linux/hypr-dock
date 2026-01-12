@@ -91,8 +91,11 @@ func (pv *PV) Show(item *item.Item, settings settings.Settings) {
 	})
 
 	widget, err := pvwidget.New(item, settings, func(w, h int) {
-		setCord(w, h, item, settings, func(x, y int, startx, starty string) {
+		setCord(w, h, item, settings, func(x, y int, startx, starty string, monitor *gdk.Monitor) {
 			pv.popup.Open(x, y, startx, starty)
+			if monitor != nil {
+				pv.popup.SetMonitor(monitor)
+			}
 		})
 	})
 	if err != nil {
@@ -139,8 +142,11 @@ func (pv *PV) Change(item *item.Item, settings settings.Settings) {
 	})
 
 	widget, err := pvwidget.New(item, settings, func(w, h int) {
-		setCord(w, h, item, settings, func(x, y int, startx, starty string) {
+		setCord(w, h, item, settings, func(x, y int, startx, starty string, monitor *gdk.Monitor) {
 			pv.popup.Move(x, y)
+			if monitor != nil {
+				pv.popup.SetMonitor(monitor)
+			}
 		})
 	})
 	if err != nil {
@@ -210,7 +216,7 @@ func getCord(v *gtk.Button, settings settings.Settings) (int, int, error) {
 	return x, y, err
 }
 
-func setCord(w, h int, item *item.Item, settings settings.Settings, callBack func(x, y int, startx, starty string)) {
+func setCord(w, h int, item *item.Item, settings settings.Settings, callBack func(x, y int, startx, starty string, monitor *gdk.Monitor)) {
 	x, y, _ := getCord(item.Button, settings)
 	var startx, starty string
 
@@ -228,12 +234,34 @@ func setCord(w, h int, item *item.Item, settings settings.Settings, callBack fun
 		starty = "top"
 	}
 
+	// Calculate global coordinates first
 	switch settings.Position {
-	case "top", "bottom":
+	case "bottom", "top":
+		// center horizontally
 		x = x - w/2
 	case "left", "right":
+		// center vertically
 		y = y - h/2
 	}
 
-	callBack(x, y, startx, starty)
+	var monitor *gdk.Monitor
+	display, err := gdk.DisplayGetDefault()
+	if err == nil {
+		// Use the center point of the dock item to find the monitor
+		ox, oy, _ := getCord(item.Button, settings)
+
+		monitor, err = display.GetMonitorAtPoint(ox, oy)
+		if err == nil {
+			geo := monitor.GetGeometry()
+			// Translate global (x, y) to relative (x - geo.X, y - geo.Y)
+			// But careful using GetX() / GetY() for Rectangle
+			relX := x - geo.GetX()
+			relY := y - geo.GetY()
+
+			x = relX
+			y = relY
+		}
+	}
+
+	callBack(x, y, startx, starty, monitor)
 }

@@ -176,20 +176,27 @@ func (s *Stream) Start(fps int, buferSize ...int) error {
 }
 
 func (s *Stream) CaptureFrame() error {
+	log.Printf("DEBUG HYSC: Starting CaptureFrame for handle %d", s.handle)
+
 	app, err := wl.NewApp(hclog.Default())
 	if err != nil {
+		log.Printf("ERROR HYSC: Wayland connection failed: %v", err)
 		return fmt.Errorf("failed to wayland connection: %v", err)
 	}
 	defer app.Close()
 
+	log.Printf("DEBUG HYSC: Calling app.CaptureFrame with handle %d", s.handle)
 	frame, err := app.CaptureFrame(s.handle)
 	if err != nil {
+		log.Printf("ERROR HYSC: Frame capture failed: %v", err)
 		app.Close()
 		return fmt.Errorf("failed to capture frame: %v", err)
 	}
+	log.Printf("DEBUG HYSC: Frame captured successfully, size: %dx%d", frame.Bounds().Dx(), frame.Bounds().Dy())
 
 	pixbuf, err := nRGBAtoPixbuf(frame)
 	if err != nil {
+		log.Printf("ERROR HYSC: Pixbuf conversion failed: %v", err)
 		return fmt.Errorf("failed to convert pixbuf: %v", err)
 	}
 
@@ -218,15 +225,17 @@ func (s *Stream) CaptureFrame() error {
 		W: pixbuf.GetWidth(),
 		H: pixbuf.GetHeight(),
 	}
-
 	s.SetFromPixbuf(pixbuf)
 
+	log.Printf("DEBUG HYSC: Calling readyHandler with size %dx%d", size.W, size.H)
 	if s.readyHandler != nil {
 		s.readyHandler(size)
+	} else {
+		log.Printf("WARNING HYSC: readyHandler is nil!")
 	}
-
 	s.size = size
 
+	log.Printf("DEBUG HYSC: CaptureFrame completed successfully")
 	return nil
 }
 

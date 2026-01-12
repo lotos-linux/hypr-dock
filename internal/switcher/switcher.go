@@ -251,7 +251,7 @@ func Run() {
 			keyVal == gdk.KEY_Meta_L || keyVal == gdk.KEY_Meta_R ||
 			keyVal == gdk.KEY_Super_L || keyVal == gdk.KEY_Super_R {
 
-			utils.AddStyle(s.debugBox, "eventbox { background-color: red; }")
+			// utils.AddStyle(s.debugBox, "eventbox { background-color: red; }")
 			s.confirm()
 		}
 	})
@@ -357,6 +357,7 @@ func (s *Switcher) loadData() {
 	}
 
 	s.selected = targetIdx
+	debugLog("DATA LOADED: %d Clients, %d Workspaces. Selected Index: %d. CycleWorkspaces=%v", len(s.clients), len(s.workspaces), s.selected, s.config.CycleWorkspaces)
 }
 
 func (s *Switcher) render() {
@@ -618,10 +619,10 @@ func (s *Switcher) render() {
 }
 
 func (s *Switcher) updateSelection() {
-	var selectedWorkspaceID int
-	if len(s.clients) > 0 {
-		selectedWorkspaceID = s.clients[s.selected].Workspace.Id
-	}
+	// var selectedWorkspaceID int
+	// if len(s.clients) > 0 {
+	// 	selectedWorkspaceID = s.clients[s.selected].Workspace.Id
+	// }
 
 	for i, w := range s.widgets {
 		if w == nil {
@@ -631,11 +632,17 @@ func (s *Switcher) updateSelection() {
 		highlight := (i == s.selected)
 
 		// If Cycle Workspaces, highlight if in same workspace
-		if s.config.CycleWorkspaces {
-			if s.clients[i].Workspace.Id == selectedWorkspaceID {
-				highlight = true
+		// BUT only if we have multiple workspaces, otherwise it looks static (everything highlighted)
+		// FIXED: User finds this confusing ("static"). Let's disable "Workspace Highlighting" visually
+		// and always highlight just the selected window. The cycling logic still jumps workspaces,
+		// but the visual feedback is precise.
+		/*
+			if s.config.CycleWorkspaces && len(s.workspaces) > 1 {
+				if s.clients[i].Workspace.Id == selectedWorkspaceID {
+					highlight = true
+				}
 			}
-		}
+		*/
 
 		ctx, _ := w.GetStyleContext()
 		if highlight {
@@ -658,6 +665,7 @@ func (s *Switcher) cycle(direction int) {
 		// Jump to next workspace
 		currentID := s.clients[s.selected].Workspace.Id
 		nextIdx := s.selected
+		foundNewWorkspace := false
 
 		// Limit loop to length to avoid infinite
 		for i := 0; i < len(s.clients); i++ {
@@ -672,15 +680,27 @@ func (s *Switcher) cycle(direction int) {
 			}
 
 			if s.clients[nextIdx].Workspace.Id != currentID {
-				// Found new workspace (or we wrapped around to same workspace but it counts as change?
-				// No, we want distinct ID. If only 1 workspace exists, we stay.)
+				// Found new workspace
 				s.selected = nextIdx
+				foundNewWorkspace = true
 				break
 			}
 		}
-		// If we looped all and didn't find diff ID (only 1 workspace), do nothing or cycle windows?
-		// User wants workspace cycling. If only 1 workspace, maybe do nothing.
-		// Logic above changes s.selected only if ID differs.
+
+		// Fallback: If we couldn't find a different workspace (e.g. only 1 workspace open),
+		// treat it as normal window cycling so the user isn't stuck.
+		if !foundNewWorkspace {
+			debugLog("CYCLE: No new workspace found. Fallback to window cycling.")
+			s.selected += direction
+			if s.selected >= len(s.clients) {
+				s.selected = 0
+			}
+			if s.selected < 0 {
+				s.selected = len(s.clients) - 1
+			}
+		} else {
+			debugLog("CYCLE: Switched to workspaceID %d (Client Idx %d)", s.clients[s.selected].Workspace.Id, s.selected)
+		}
 	} else {
 		// Standard Window Cycling
 		s.selected += direction
@@ -690,6 +710,7 @@ func (s *Switcher) cycle(direction int) {
 		if s.selected < 0 {
 			s.selected = len(s.clients) - 1
 		}
+		debugLog("CYCLE: Window Index %d", s.selected)
 	}
 
 	s.updateSelection()
@@ -726,18 +747,19 @@ func (s *Switcher) handleSignal() {
 		s.altWasHeld = true
 
 		// Refresh Data
-		oldClients := s.clients
+		// oldClients := s.clients
 		s.loadData()
 
 		// Check if we can reuse the existing UI (Instant Show)
-		if clientsEqual(oldClients, s.clients) {
-			debugLog("CACHE: Windows unchanged, skipping render.")
-			s.updateSelection()
-			// s.updatePreviews()
-		} else {
-			debugLog("CACHE: Windows changed, re-rendering.")
-			s.render()
-		}
+		// FIXED: Users report stale screenshots. Always re-render to ensure fresh previews.
+		// if clientsEqual(oldClients, s.clients) {
+		// 	debugLog("CACHE: Windows unchanged, skipping render.")
+		// 	s.updateSelection()
+		// 	// s.updatePreviews()
+		// } else {
+		// debugLog("CACHE: Windows changed (Old: %d, New: %d), re-rendering.", len(oldClients), len(s.clients))
+		s.render()
+		// }
 
 		s.window.SetKeepAbove(true)
 		s.window.Present()
@@ -859,24 +881,41 @@ func (s *Switcher) checkModifiers() bool {
 	// Check for Alt (Mod1) or Super (Mod4)
 	isAltDown := (state&gdk.MOD1_MASK != 0) || (state&gdk.SUPER_MASK != 0) || (state&gdk.META_MASK != 0)
 
+	// DEBUG: Explicitly log state every ~250ms to avoid spam but show status
+	// Or just log on change?
+	// For "detailed", let's log every check that has modifiers.
+	if isAltDown || s.altWasHeld {
+		// debugLog("POLL: Mods=%v AltDown=%v Held=%v TimeSinceStart=%v", state, isAltDown, s.altWasHeld, time.Since(s.startTime))
+	}
+
 	// Grace Period: 150ms (Balanced for reliability vs speed)
 	if time.Since(s.startTime) < 150*time.Millisecond {
-		// Just update visual if we DO see it, but don't act on specific missing state
+		// Just update visual if we DO see it
 		if isAltDown {
 			s.altWasHeld = true
-			utils.AddStyle(s.debugBox, "eventbox { background-color: #00ff00; }")
+			if s.debugBox != nil {
+				// Avoid AddStyle in loop (memory leak)
+				// status update only if changed? ignoring for now to fix freeze.
+			}
+			debugLog("POLL [Grace]: saw alt down. Held=true")
+			return true
 		}
-		return true
+		debugLog("POLL [Grace]: alt NOT down. Ignoring release (Grace period).")
+		// If NOT held, and we previously saw it held, it's a fast tap!
+		// Don't return true, fall through to release logic below.
 	}
 
 	if isAltDown {
+		if !s.altWasHeld {
+			debugLog("POLL: Alt pressed (Transition to Held)")
+		}
 		s.altWasHeld = true
-		utils.AddStyle(s.debugBox, "eventbox { background-color: #00ff00; }") // Green
+		// utils.AddStyle(s.debugBox, "eventbox { background-color: #00ff00; }") // Green
 	} else {
 		// If we thought it was held, and now it's NOT held, then confirm
 		if s.altWasHeld {
 			debugLog("POLL: Alt Released! Confirming...")
-			utils.AddStyle(s.debugBox, "eventbox { background-color: red; }") // Red
+			// utils.AddStyle(s.debugBox, "eventbox { background-color: red; }") // Red
 			s.confirm()
 			return false // Stop polling
 		}
@@ -910,8 +949,6 @@ func setupSingleton(s *Switcher) bool {
 	// Write current PID
 	pid := os.Getpid()
 	_ = ioutil.WriteFile(lockFile, []byte(strconv.Itoa(pid)), 0644)
-	debugLog("STARTUP: Daemon Started. PID=%d", pid)
-	return true
 	debugLog("STARTUP: Daemon Started. PID=%d", pid)
 	return true
 }
@@ -1070,13 +1107,14 @@ func clientsEqual(a, b []ipc.Client) bool {
 }
 
 func debugLog(format string, v ...interface{}) {
-	f, err := os.OpenFile("/tmp/hypr-dock-debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-
-	msg := fmt.Sprintf(format, v...)
-	timestamp := time.Now().Format("15:04:05.000")
-	f.WriteString(fmt.Sprintf("[%s] %s\n", timestamp, msg))
+	// DISABLED for performance (Prevent UI Freeze)
+	// if false {
+	// 	f, err := os.OpenFile("/tmp/hypr-dock-debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// 	if err == nil {
+	// 		defer f.Close()
+	// 		msg := fmt.Sprintf(format, v...)
+	// 		timestamp := time.Now().Format("15:04:05.000")
+	// 		f.WriteString(fmt.Sprintf("[%s] %s\n", timestamp, msg))
+	// 	}
+	// }
 }

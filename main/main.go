@@ -17,9 +17,17 @@ import (
 	"hypr-dock/internal/pkg/utils"
 	"hypr-dock/internal/settings"
 	"hypr-dock/internal/state"
+	"hypr-dock/internal/switcher"
 )
 
 func main() {
+	// Handle flags
+	args := os.Args[1:]
+	if len(args) > 0 && args[0] == "--switcher" {
+		switcher.Run()
+		return
+	}
+
 	signals.Handler()
 
 	lockFilePath := fmt.Sprintf("%s/hypr-dock-%s.lock", utils.TempDir(), os.Getenv("USER"))

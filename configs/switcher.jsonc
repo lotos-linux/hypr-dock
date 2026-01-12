@@ -1,0 +1,18 @@
+{
+    // Window dimensions (Percentage of screen or pixels? Currently treated as pixels/layout hints)
+    // Actually config.go implementation uses WidthPercent/HeightPercent but logic isn't fully using them yet.
+    // Let's stick to the user request.
+    "widthPercent": 100,
+    "heightPercent": 60,
+    // Font Size in pixels
+    "fontSize": 20,
+    // Preview card width in pixels (Default 300)
+    "previewWidth": 400,
+    // Multi-monitor behavior
+    // true = Show all workspaces from all monitors
+    // false = Show only workspaces on the currently active monitor
+    // false = Show only workspaces on the currently active monitor
+    "showAllMonitors": false,
+    // If true, cycles through WORKSPACES (one window per workspace) instead of all windows.
+    "cycleWorkspaces": true
+}

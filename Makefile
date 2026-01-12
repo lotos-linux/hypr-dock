@@ -10,6 +10,7 @@ GREEN := \033[32m
 YELLOW := \033[33m
 
 install:
+		-sudo killall $(EXECUTABLE) 2>/dev/null || true
 		sudo cp $(PROJECT_BIN_DIR)/$(EXECUTABLE) /usr/bin/
 
 		mkdir -p $(LOCAL_CONFIG_DIR)

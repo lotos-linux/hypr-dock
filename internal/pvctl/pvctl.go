@@ -192,28 +192,43 @@ func getCord(v *gtk.Button, settings settings.Settings) (int, int, error) {
 	dock, err := layerinfo.GetDock()
 	if err != nil {
 		log.Println(err)
+		return 0, 0, err
 	}
 
 	var x int
 	var y int
 
-	switch pos {
-	case "bottom", "top":
-		x = dock.X + v.GetAllocation().GetX() + v.GetAllocatedWidth()/2
-		y = margin
-	case "left", "right":
-		x = margin
-		y = dock.Y + v.GetAllocation().GetY() + v.GetAllocatedHeight()/2
+	// Add monitor offset
+	monitors, err := ipc.GetMonitors()
+	if err != nil {
+		log.Println("Error getting monitors:", err)
+	} else {
+		for _, m := range monitors {
+			if m.Name == dock.Monitor {
+				x += m.X
+				y += m.Y
+				break
+			}
+		}
 	}
 
 	switch pos {
 	case "bottom", "top":
-		y = y + dock.H
+		x += dock.X + v.GetAllocation().GetX() + v.GetAllocatedWidth()/2
+		y += margin
 	case "left", "right":
-		x = x + dock.W
+		x += margin
+		y += dock.Y + v.GetAllocation().GetY() + v.GetAllocatedHeight()/2
 	}
 
-	return x, y, err
+	switch pos {
+	case "bottom", "top":
+		y += dock.H
+	case "left", "right":
+		x += dock.W
+	}
+
+	return x, y, nil
 }
 
 func setCord(w, h int, item *item.Item, settings settings.Settings, callBack func(x, y int, startx, starty string, monitor *gdk.Monitor)) {

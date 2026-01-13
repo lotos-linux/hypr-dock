@@ -26,6 +26,15 @@ func (s *Switcher) loadData() {
 		return
 	}
 
+	// Find focused monitor
+	focusedMonitorID := -1
+	for _, m := range s.monitors {
+		if m.Focused {
+			focusedMonitorID = m.Id
+			break
+		}
+	}
+
 	// Filter & Group
 	s.workspaceMap = make(map[int][]int)
 
@@ -34,6 +43,13 @@ func (s *Switcher) loadData() {
 	minFocusMap := make(map[int]int) // Workspace ID -> Minimum FocusHistoryID (Lower = More Recent)
 
 	for _, c := range all {
+		// Filter by Monitor if needed
+		if !s.config.ShowAllMonitors && focusedMonitorID != -1 {
+			if c.Monitor != focusedMonitorID {
+				continue
+			}
+		}
+
 		if c.Mapped && c.Workspace.Id > 0 {
 			tempWsMap[c.Workspace.Id] = append(tempWsMap[c.Workspace.Id], c)
 

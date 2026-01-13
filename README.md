@@ -69,6 +69,8 @@ Themes are in `~/.config/hypr-dock/themes/`. Change the current theme in `config
 
 A visual Alt-Tab switcher that groups windows by **Workspace** and sorts them by **Recency (MRU)**.
 
+**Demo:** [Watch on YouTube](https://www.youtube.com/watch?v=rU1Ex1y95Rs)
+
 ### Features
 - **MRU Workspace Switching**: Alt-Tab cycles through workspaces based on when you last used them.
 - **Workspace Cards**: Visual groups showing all windows in a workspace.

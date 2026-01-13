@@ -198,7 +198,7 @@ func (s *Switcher) setupScreenshot(c ipc.Client, w, h int, centerBox *gtk.Box, o
 	if err == nil {
 		fingerprint := getWindowFingerprint(c)
 		cached, exists := s.screenshotCache[fingerprint]
-		cacheValid := exists && time.Since(cached.Timestamp) < 5*time.Second
+		cacheValid := exists && time.Since(cached.Timestamp) < 10*time.Second
 
 		if cacheValid {
 			logTiming("[SCREENSHOT] Using cached screenshot for: %s", c.Address)

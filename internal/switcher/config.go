@@ -21,7 +21,7 @@ func GetDefaultConfig() Config {
 	return Config{
 		WidthPercent:    100,
 		HeightPercent:   60,
-		FontSize:        20,
+		FontSize:        32,
 		PreviewWidth:    400,
 		ShowAllMonitors: false,
 		CycleWorkspaces: true,

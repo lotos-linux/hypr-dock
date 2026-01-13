@@ -9,10 +9,6 @@
     // Preview card width in pixels (Default 300)
     "previewWidth": 400,
     // Multi-monitor behavior
-    // true = Show all workspaces from all monitors
     // false = Show only workspaces on the currently active monitor
-    // false = Show only workspaces on the currently active monitor
-    "showAllMonitors": false,
-    // If true, cycles through WORKSPACES (one window per workspace) instead of all windows.
-    "cycleWorkspaces": true
+    "showAllMonitors": false
 }

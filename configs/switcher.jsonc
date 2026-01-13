@@ -10,5 +10,7 @@
     "previewWidth": 400,
     // Multi-monitor behavior
     // false = Show only workspaces on the currently active monitor
-    "showAllMonitors": false
+    "showAllMonitors": false,
+    // Icon Size for the overlay badge (0 = Auto, >0 = Fixed size in pixels)
+    "iconSize": 0
 }

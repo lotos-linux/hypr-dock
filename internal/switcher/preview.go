@@ -160,8 +160,17 @@ func (s *Switcher) capturePreviewAsync(
 
 				// Add App Icon Badge
 				badgeSize := 32
-				if scaledW < 100 {
-					badgeSize = 16
+				if s.config.IconSize > 0 {
+					badgeSize = s.config.IconSize
+				} else {
+					// Auto Mode
+					badgeSize = scaledW / 8
+					if badgeSize < 32 {
+						badgeSize = 32
+					}
+					if badgeSize > 96 {
+						badgeSize = 96
+					}
 				}
 				badge, _ := utils.CreateImage(iconName, badgeSize)
 				badge.SetHAlign(gtk.ALIGN_CENTER)

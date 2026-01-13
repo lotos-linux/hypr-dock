@@ -95,7 +95,7 @@ func (s *Switcher) createWorkspaceCard(wsID int, indices []int, currentRow *gtk.
 	titleLabel.SetHAlign(gtk.ALIGN_START)
 	titleLabel.SetEllipsize(pango.ELLIPSIZE_END)
 	titleLabel.SetMaxWidthChars(25)
-	utils.AddStyle(titleLabel, "label { color: #aaaaaa; font-size: 0.7em; margin-left: 5px; }")
+	utils.AddStyle(titleLabel, "label { color: #ffffff; font-weight: bold; font-size: 0.8em; margin-left: 5px; }")
 	headerBox.PackStart(titleLabel, true, true, 0)
 
 	wsBox.Add(headerBox)
@@ -159,8 +159,8 @@ func (s *Switcher) createWindowWidget(idx int, mon ipc.Monitor, scale float64, f
 	// 1. Render Icon
 	iconName := c.Class
 	iconSize := scaledW / 2
-	if iconSize > 48 {
-		iconSize = 48
+	if iconSize > 128 {
+		iconSize = 128
 	}
 	if iconSize < 16 {
 		iconSize = 16
@@ -198,7 +198,16 @@ func (s *Switcher) setupScreenshot(c ipc.Client, w, h int, centerBox *gtk.Box, o
 	if err == nil {
 		fingerprint := getWindowFingerprint(c)
 		cached, exists := s.screenshotCache[fingerprint]
-		cacheValid := exists && time.Since(cached.Timestamp) < 10*time.Second
+
+		// Smart Caching Logic
+		// If in active workspace (Index 0 of sorted workspaces), keep cache short (1s)
+		// Otherwise, keep cache long (60s)
+		cacheDuration := 60 * time.Second
+		if len(s.workspaces) > 0 && c.Workspace.Id == s.workspaces[0] {
+			cacheDuration = 1 * time.Second
+		}
+
+		cacheValid := exists && time.Since(cached.Timestamp) < cacheDuration
 
 		if cacheValid {
 			logTiming("[SCREENSHOT] Using cached screenshot for: %s", c.Address)
@@ -213,8 +222,17 @@ func (s *Switcher) setupScreenshot(c ipc.Client, w, h int, centerBox *gtk.Box, o
 
 				// Add App Icon Badge (Fix for missing cache icon)
 				badgeSize := 32
-				if w < 100 {
-					badgeSize = 16
+				if s.config.IconSize > 0 {
+					badgeSize = s.config.IconSize
+				} else {
+					// Auto Mode
+					badgeSize = w / 8
+					if badgeSize < 32 {
+						badgeSize = 32
+					}
+					if badgeSize > 96 {
+						badgeSize = 96
+					}
 				}
 				badge, _ := utils.CreateImage(iconName, badgeSize)
 				badge.SetHAlign(gtk.ALIGN_CENTER)

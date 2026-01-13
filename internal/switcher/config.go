@@ -15,16 +15,18 @@ type Config struct {
 	PreviewWidth    int  `json:"previewWidth"`    // Default 300
 	ShowAllMonitors bool `json:"showAllMonitors"` // Default true
 	CycleWorkspaces bool `json:"cycleWorkspaces"`
+	IconSize        int  `json:"iconSize"` // Default 0 (Auto)
 }
 
 func GetDefaultConfig() Config {
 	return Config{
 		WidthPercent:    100,
 		HeightPercent:   60,
-		FontSize:        32,
+		FontSize:        20,
 		PreviewWidth:    400,
 		ShowAllMonitors: false,
 		CycleWorkspaces: true,
+		IconSize:        0,
 	}
 }
 

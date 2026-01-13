@@ -2,7 +2,6 @@ package switcher
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/gotk3/gotk3/glib"
@@ -28,12 +27,12 @@ func (s *Switcher) render() {
 		s.box.Remove(item.(gtk.IWidget))
 	})
 
-	// Render a "Card" for each workspace
-	// Serialize Wayland access (Panic Fix)
+	// Serialize Wayland access
 	sem := make(chan struct{}, 1)
 	var currentRow *gtk.Box
 	itemsInRow := 0
 
+	// Iterate over SORTED Workspaces (Recency order)
 	for _, wsID := range s.workspaces {
 		indices := s.workspaceMap[wsID]
 		if len(indices) == 0 {
@@ -57,7 +56,7 @@ func (s *Switcher) render() {
 // createWorkspaceCard creates a card for a single workspace
 func (s *Switcher) createWorkspaceCard(wsID int, indices []int, currentRow *gtk.Box, currentGen int, sem chan struct{}) {
 	// Find relevant monitor for this workspace
-	firstClient := s.clients[indices[0]]
+	firstClient := s.clients[indices[0]] // Indices are already sorted by recency within WS
 	mon, ok := s.monitorMap[firstClient.Monitor]
 	if !ok && len(s.monitors) > 0 {
 		mon = s.monitors[0]
@@ -87,7 +86,7 @@ func (s *Switcher) createWorkspaceCard(wsID int, indices []int, currentRow *gtk.
 	wsNumBox.Add(wsNumLabel)
 	headerBox.PackStart(wsNumBox, false, false, 0)
 
-	// 2. Window Title
+	// 2. Window Title of the MOST RECENT (first) client
 	titleText := firstClient.Title
 	if titleText == "" {
 		titleText = firstClient.Class
@@ -109,7 +108,9 @@ func (s *Switcher) createWorkspaceCard(wsID int, indices []int, currentRow *gtk.
 	currentRow.Add(wsBox)
 
 	// Place Windows
-	for _, idx := range indices {
+	// CRITICAL: We iterate REVERSE to draw oldest first, newest last (on top)
+	for i := len(indices) - 1; i >= 0; i-- {
+		idx := indices[i]
 		s.createWindowWidget(idx, mon, scale, fixed, currentGen, sem)
 	}
 }
@@ -155,7 +156,7 @@ func (s *Switcher) createWindowWidget(idx int, mon ipc.Monitor, scale float64, f
 	centerBox.SetHAlign(gtk.ALIGN_CENTER)
 	overlay.Add(centerBox)
 
-	// 1. Always Render Icon First
+	// 1. Render Icon
 	iconName := c.Class
 	iconSize := scaledW / 2
 	if iconSize > 48 {
@@ -166,7 +167,6 @@ func (s *Switcher) createWindowWidget(idx int, mon ipc.Monitor, scale float64, f
 	}
 
 	// 2. Async Icon Load
-	// Create Placeholder (Instant)
 	icon, _ := gtk.ImageNewFromIconName("image-loading", gtk.ICON_SIZE_DIALOG)
 	icon.SetPixelSize(iconSize)
 	icon.SetHAlign(gtk.ALIGN_CENTER)
@@ -175,42 +175,8 @@ func (s *Switcher) createWindowWidget(idx int, mon ipc.Monitor, scale float64, f
 	// Load icon asynchronously
 	s.loadIconAsync(icon, iconName, iconSize, currentGen)
 
-	// 3. Try to upgrade to Screenshot
-	_, err := hysc.StreamNew(c.Address)
-	if err == nil {
-		// Check if we have a cached screenshot for this window
-		fingerprint := getWindowFingerprint(c)
-		cached, exists := s.screenshotCache[fingerprint]
-
-		// Cache is valid if it exists AND is less than 5 seconds old
-		cacheValid := exists && time.Since(cached.Timestamp) < 5*time.Second
-
-		if cacheValid {
-			// Reuse cached screenshot (instant!)
-			logTiming("[SCREENSHOT] Using cached screenshot for: %s (age: %.1fs)", c.Address, time.Since(cached.Timestamp).Seconds())
-			glib.IdleAdd(func() {
-				// Check generation
-				if s.renderGen != currentGen {
-					return
-				}
-
-				// Replace icon with cached screenshot
-				centerBox.Remove(icon)
-				img, _ := gtk.ImageNewFromPixbuf(cached.Pixbuf)
-				img.SetHAlign(gtk.ALIGN_CENTER)
-				centerBox.Add(img)
-				overlay.ShowAll()
-			})
-		} else {
-			// Capture new screenshot and cache it
-			if exists {
-				logTiming("[SCREENSHOT] Cache expired for: %s (age: %.1fs), re-capturing", c.Address, time.Since(cached.Timestamp).Seconds())
-			}
-			s.capturePreviewAsync(c, scaledW, scaledH, centerBox, overlay, icon.ToWidget(), iconName, currentGen, sem, fingerprint)
-		}
-	} else {
-		log.Printf("Failed to create stream for %s: %v", c.Address, err)
-	}
+	// 3. Screenshot Logic
+	s.setupScreenshot(c, scaledW, scaledH, centerBox, overlay, icon, iconName, currentGen, sem)
 
 	// 4. Mouse Interaction (EventBox)
 	eventBox, _ := gtk.EventBoxNew()
@@ -224,6 +190,32 @@ func (s *Switcher) createWindowWidget(idx int, mon ipc.Monitor, scale float64, f
 
 	fixed.Put(eventBox, scaledX, scaledY)
 	s.widgets[idx] = &winBox.Widget
+}
+
+// setupScreenshot handles the screenshot logic extracted from previous monolith
+func (s *Switcher) setupScreenshot(c ipc.Client, w, h int, centerBox *gtk.Box, overlay *gtk.Overlay, icon *gtk.Image, iconName string, currentGen int, sem chan struct{}) {
+	_, err := hysc.StreamNew(c.Address)
+	if err == nil {
+		fingerprint := getWindowFingerprint(c)
+		cached, exists := s.screenshotCache[fingerprint]
+		cacheValid := exists && time.Since(cached.Timestamp) < 5*time.Second
+
+		if cacheValid {
+			logTiming("[SCREENSHOT] Using cached screenshot for: %s", c.Address)
+			glib.IdleAdd(func() {
+				if s.renderGen != currentGen {
+					return
+				}
+				centerBox.Remove(icon)
+				img, _ := gtk.ImageNewFromPixbuf(cached.Pixbuf)
+				img.SetHAlign(gtk.ALIGN_CENTER)
+				centerBox.Add(img)
+				overlay.ShowAll()
+			})
+		} else {
+			s.capturePreviewAsync(c, w, h, centerBox, overlay, icon.ToWidget(), iconName, currentGen, sem, fingerprint)
+		}
+	}
 }
 
 // updateSelection updates the visual selection state of all widgets
@@ -242,7 +234,4 @@ func (s *Switcher) updateSelection() {
 			ctx.RemoveClass("switcher-item-selected")
 		}
 	}
-
-	// Ensure scrolling (basic approximation: scroll to selected)
-	// Improving scroll logic is hard without coordinates, assume gtk handles it mostly or fixed size.
 }

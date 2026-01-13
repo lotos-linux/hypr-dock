@@ -27,65 +27,83 @@ func (s *Switcher) loadData() {
 	}
 
 	// Filter & Group
-	var filtered []ipc.Client
 	s.workspaceMap = make(map[int][]int)
 
-	// NOTE: We removed the monitor filtering logic here to ensure ALL windows
-	// from ALL workspaces are loaded immediately for preview caching.
-	// This eliminates the 2+ second delay when navigating between workspaces.
-	// The ShowAllMonitors config can be used later for display filtering if needed.
-
-	// Sort by Workspace ID then maybe processing order
-	// We want a stable order for cycling.
-	sort.Slice(all, func(i, j int) bool {
-		if all[i].Workspace.Id != all[j].Workspace.Id {
-			return all[i].Workspace.Id < all[j].Workspace.Id
-		}
-		return all[i].At[0] < all[j].At[0] // Left-to-right within workspace
-	})
+	// Group clients by workspace temporarily to calculate recency
+	tempWsMap := make(map[int][]ipc.Client)
+	minFocusMap := make(map[int]int) // Workspace ID -> Minimum FocusHistoryID (Lower = More Recent)
 
 	for _, c := range all {
 		if c.Mapped && c.Workspace.Id > 0 {
-			// Load ALL windows for caching - no monitor filtering
-			filtered = append(filtered, c)
-			idx := len(filtered) - 1
-			s.workspaceMap[c.Workspace.Id] = append(s.workspaceMap[c.Workspace.Id], idx)
+			tempWsMap[c.Workspace.Id] = append(tempWsMap[c.Workspace.Id], c)
+
+			// Update minimum focus ID for this workspace
+			currMin, exists := minFocusMap[c.Workspace.Id]
+			if !exists || c.FocusHistoryID < currMin {
+				minFocusMap[c.Workspace.Id] = c.FocusHistoryID
+			}
 		}
 	}
-	s.clients = filtered
-	s.widgets = make([]*gtk.Widget, len(s.clients))
 
 	// Get list of workspaces
 	var ws []int
-	for k := range s.workspaceMap {
+	for k := range tempWsMap {
 		ws = append(ws, k)
 	}
-	sort.Ints(ws)
+
+	// Sort Workspaces by Recency (Min FocusHistoryID)
+	// Lower MinFocusID = Workspace was active more recently
+	sort.Slice(ws, func(i, j int) bool {
+		minI := minFocusMap[ws[i]]
+		minJ := minFocusMap[ws[j]]
+		return minI < minJ
+	})
 	s.workspaces = ws
 
-	// Smart Selection: Find Previous Window (FocusHistoryID == 1)
-	targetIdx := 0
-	if len(s.clients) > 1 {
-		// Default fallback if we can't find history
-		targetIdx = 1
-	}
+	// Rebuild s.clients in the order of Sorted Workspaces
+	var orderedClients []ipc.Client
 
-	// Scan for FocusHistoryID == 1
-	for i, c := range s.clients {
-		if c.FocusHistoryID == 1 {
-			targetIdx = i
-			break
+	for _, wsID := range s.workspaces {
+		clientsInWs := tempWsMap[wsID]
+
+		// Sort clients WITHIN workspace by FocusHistoryID (MRU within workspace)
+		sort.Slice(clientsInWs, func(i, j int) bool {
+			return clientsInWs[i].FocusHistoryID < clientsInWs[j].FocusHistoryID
+		})
+
+		// Append to main list and build map
+		for _, c := range clientsInWs {
+			orderedClients = append(orderedClients, c)
+			idx := len(orderedClients) - 1
+			s.workspaceMap[wsID] = append(s.workspaceMap[wsID], idx)
+		}
+	}
+	s.clients = orderedClients
+	s.widgets = make([]*gtk.Widget, len(s.clients))
+
+	// Selection Logic: Select the first client of the SECOND workspace (Index 1)
+	// Index 0 in s.workspaces is the current active workspace.
+	// Index 1 is the previous workspace.
+	targetIdx := 0
+
+	if len(s.workspaces) > 1 {
+		// Select the first window of the second workspace
+		targetWsID := s.workspaces[1]
+		indices := s.workspaceMap[targetWsID]
+		if len(indices) > 0 {
+			targetIdx = indices[0]
+		}
+	} else if len(s.workspaces) == 1 {
+		// Only one workspace, maybe multiple windows?
+		// Select the second window (Index 1) if available (Previous App in same WS)
+		if len(s.clients) > 1 {
+			targetIdx = 1
 		}
 	}
 
-	// Safety: If for some reason we picked the current window (0) but others exist, force move.
-	if targetIdx == 0 && len(s.clients) > 1 {
-		targetIdx = 1
-	}
-
 	s.selected = targetIdx
-	logTiming("Data loaded: %d clients across %d workspaces", len(s.clients), len(s.workspaces))
-	debugLog("DATA LOADED: %d Clients, %d Workspaces. Selected Index: %d. CycleWorkspaces=%v", len(s.clients), len(s.workspaces), s.selected, s.config.CycleWorkspaces)
+	debugLog("DATA LOADED: %d Clients, %d Workspaces (MRU). Selected Index: %d.", len(s.clients), len(s.workspaces), s.selected)
+	logTiming("Data loaded: Sorted by Workspace Recency")
 }
 
 // clientsEqual compares two client slices for equality

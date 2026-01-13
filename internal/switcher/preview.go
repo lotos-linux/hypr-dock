@@ -141,11 +141,12 @@ func (s *Switcher) capturePreviewAsync(
 
 		// Capture using shared app
 		var err error
-		if s.app != nil {
-			err = stream.CaptureFrameWithApp(s.app)
-		} else {
-			err = stream.CaptureFrame() // Fallback (shouldn't happen if connected)
-		}
+		// Force fresh connection for each capture to resolve issue with multiple windows
+		// if s.app != nil {
+		// 	err = stream.CaptureFrameWithApp(s.app)
+		// } else {
+		err = stream.CaptureFrame()
+		// }
 
 		if err == nil {
 			// Success! Swap on Main Thread

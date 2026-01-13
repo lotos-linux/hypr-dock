@@ -210,6 +210,18 @@ func (s *Switcher) setupScreenshot(c ipc.Client, w, h int, centerBox *gtk.Box, o
 				img, _ := gtk.ImageNewFromPixbuf(cached.Pixbuf)
 				img.SetHAlign(gtk.ALIGN_CENTER)
 				centerBox.Add(img)
+
+				// Add App Icon Badge (Fix for missing cache icon)
+				badgeSize := 32
+				if w < 100 {
+					badgeSize = 16
+				}
+				badge, _ := utils.CreateImage(iconName, badgeSize)
+				badge.SetHAlign(gtk.ALIGN_CENTER)
+				badge.SetVAlign(gtk.ALIGN_START)
+				badge.SetMarginTop(8)
+
+				overlay.AddOverlay(badge)
 				overlay.ShowAll()
 			})
 		} else {

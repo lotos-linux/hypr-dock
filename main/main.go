@@ -23,6 +23,14 @@ import (
 func main() {
 	// Handle flags
 	args := os.Args[1:]
+
+	// Check if run as "hypr-alttab"
+	exe, _ := os.Executable()
+	if len(os.Args) > 0 && (os.Args[0] == "hypr-alttab" || contains(exe, "hypr-alttab")) {
+		switcher.Run()
+		return
+	}
+
 	if len(args) > 0 && args[0] == "--switcher" {
 		switcher.Run()
 		return
@@ -79,4 +87,17 @@ func main() {
 
 	// end
 	gtk.Main()
+}
+
+func contains(s, substr string) bool {
+	for i := 0; i < len(s); i++ {
+		if hasPrefix(s[i:], substr) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
 }

@@ -87,9 +87,9 @@ func (s *Switcher) createWorkspaceCard(wsID int, indices []int, currentRow *gtk.
 	headerBox.PackStart(wsNumBox, false, false, 0)
 
 	// 2. Window Title of the MOST RECENT (first) client
-	titleText := firstClient.Title
-	if titleText == "" {
-		titleText = firstClient.Class
+	titleText := firstClient.Class
+	if firstClient.Title != "" && firstClient.Title != firstClient.Class {
+		titleText = fmt.Sprintf("%s - %s", firstClient.Class, firstClient.Title)
 	}
 	titleLabel, _ := gtk.LabelNew(titleText)
 	titleLabel.SetHAlign(gtk.ALIGN_START)

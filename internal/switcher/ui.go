@@ -86,15 +86,15 @@ func (s *Switcher) applyStyles() {
         * { font-family: Sans; font-size: %dpx; }
         .switcher-item {
             background-color: rgba(40, 40, 40, 0.6);
-            border: 2px solid #555;
+            border: 4px solid #555;
             border-radius: 6px;
             transition: all 0.2s ease;
         }
         .switcher-item-selected {
-            background-color: rgba(50, 150, 255, 0.4);
-            border: 2px solid #3296ff;
+            background-color: rgba(255, 255, 255, 0.2);
+            border: 4px solid #ffffff;
             border-radius: 6px;
-            box-shadow: 0 0 10px rgba(50, 150, 255, 0.3);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
         }
         `, s.config.FontSize)
 		cssProvider.LoadFromData(css)

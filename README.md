@@ -122,3 +122,23 @@ permission = /usr/bin/hypr-dock, screencopy, allow
 permission = /usr/bin/hypr-alttab, screencopy, allow
 ``` 
 See [Hyprland Permissions Wiki](https://wiki.hypr.land/Configuring/Permissions/) for details.
+
+## ❓ Troubleshooting
+
+### Protocol Errors / Build Issues
+If you encounter errors related to Wayland protocols during the build, you may need to regenerate the Go bindings:
+
+```bash
+# Update Go Wayland library
+go get -u github.com/pdf/go-wayland@latest
+go mod tidy
+
+# Install/Update the scanner tool
+go install github.com/rajveermalviya/go-wayland/cmd/go-wayland-scanner@latest
+
+# Download latest protocol XML
+wget https://raw.githubusercontent.com/hyprwm/hyprland-protocols/main/protocols/hyprland-toplevel-export-v1.xml
+
+# Generate Go code
+$(go env GOPATH)/bin/go-wayland-scanner -i hyprland-toplevel-export-v1.xml -o pkg/wl/hyprland_toplevel_export.go -pkg wl
+```

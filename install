@@ -12,7 +12,18 @@ echo ""
 echo -e "${YELLOW}Building binaries...${RESET}"
 make build
 if [ $? -ne 0 ]; then
-    echo "Build failed. Exiting."
+    echo -e "${RED}Build failed!${RESET}"
+    echo ""
+    echo -e "${YELLOW}--- TROUBLESHOOTING ---${RESET}"
+    echo -e "If you encountered errors related to Wayland protocols, you likely need to regenerate the bindings."
+    echo -e "Please run the following commands manually:"
+    echo ""
+    echo -e "  ${CYAN}go get -u github.com/pdf/go-wayland@latest${RESET}"
+    echo -e "  ${CYAN}go mod tidy${RESET}"
+    echo -e "  ${CYAN}go install github.com/rajveermalviya/go-wayland/cmd/go-wayland-scanner@latest${RESET}"
+    echo -e "  ${CYAN}wget https://raw.githubusercontent.com/hyprwm/hyprland-protocols/main/protocols/hyprland-toplevel-export-v1.xml${RESET}"
+    echo -e "  ${CYAN}\$(go env GOPATH)/bin/go-wayland-scanner -i hyprland-toplevel-export-v1.xml -o pkg/wl/hyprland_toplevel_export.go -pkg wl${RESET}"
+    echo ""
     exit 1
 fi
 echo -e "${GREEN}Build successful.${RESET}"
@@ -43,8 +54,33 @@ else
 fi
 
 echo ""
-echo -e "${CYAN}Configuration files are located at: ~/.config/hypr-dock/${RESET}"
 if [[ "$install_alttab" =~ ^[Yy]$ ]]; then
     echo -e "${YELLOW}IMPORTANT: Check ~/.config/hypr-dock/switcher.jsonc to configure hypr-alttab!${RESET}"
 fi
+
+echo ""
+echo -e "${CYAN}--- Next Steps ---${RESET}"
+echo -e "Add the following to your ${YELLOW}~/.config/hypr/hyprland.conf${RESET}:"
+echo ""
+
+if [[ "$install_dock" =~ ^[Yy]$ ]]; then
+    echo -e "# Start the Dock"
+    echo -e "${GREEN}exec-once = hypr-dock${RESET}"
+    echo ""
+fi
+
+if [[ "$install_alttab" =~ ^[Yy]$ ]]; then
+    echo -e "# Bind the Alt-Tab Switcher"
+    echo -e "${GREEN}bind = ALT, Tab, exec, hypr-alttab${RESET}"
+    echo ""
+fi
+
+echo -e "# ${RED}REQUIRED PERMISSIONS${RESET} (for window previews)"
+if [[ "$install_dock" =~ ^[Yy]$ ]]; then
+    echo -e "${GREEN}permission = /usr/bin/hypr-dock, screencopy, allow${RESET}"
+fi
+if [[ "$install_alttab" =~ ^[Yy]$ ]]; then
+    echo -e "${GREEN}permission = /usr/bin/hypr-alttab, screencopy, allow${RESET}"
+fi
+echo ""
 echo -e "${GREEN}Done!${RESET}"

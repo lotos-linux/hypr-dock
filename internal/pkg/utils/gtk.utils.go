@@ -17,31 +17,38 @@ func CreateImageWidthScale(source string, size int, scaleFactor float64) (*gtk.I
 }
 
 func CreateImage(source string, size int) (*gtk.Image, error) {
+	pixbuf, err := CreatePixbuf(source, size)
+	if err != nil {
+		return nil, err
+	}
+	return gtk.ImageNewFromPixbuf(pixbuf)
+}
+
+func CreatePixbuf(source string, size int) (*gdk.Pixbuf, error) {
 	// Create image in file
 	if strings.Contains(source, "/") {
 		pixbuf, err := gdk.PixbufNewFromFileAtSize(source, size, size)
 		if err != nil {
 			log.Println(err)
-			return CreateImage("image-missing", size)
+			return CreatePixbuf("image-missing", size)
 		}
-
-		return gtk.ImageNewFromPixbuf(pixbuf)
+		return pixbuf, nil
 	}
 
 	// Create image in icon name
 	iconTheme, err := gtk.IconThemeGetDefault()
 	if err != nil {
 		log.Println("Unable to icon theme:", err)
-		return CreateImage("image-missing", size)
+		return CreatePixbuf("image-missing", size)
 	}
 
 	pixbuf, err := iconTheme.LoadIcon(source, size, gtk.ICON_LOOKUP_FORCE_SIZE)
 	if err != nil {
-		log.Println(source, err)
-		return CreateImage("image-missing", size)
+		// log.Println(source, err) // Reduce noise?
+		return CreatePixbuf("image-missing", size)
 	}
 
-	return gtk.ImageNewFromPixbuf(pixbuf)
+	return pixbuf, nil
 }
 
 func AddStyle(widget gtk.IWidget, style string) (*gtk.CssProvider, error) {

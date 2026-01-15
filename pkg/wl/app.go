@@ -140,6 +140,8 @@ func (a *App) CaptureFrame(handle uint64) (*image.NRGBA, error) {
 	case <-done:
 	case err := <-failed:
 		return nil, err
+	case <-time.After(500 * time.Millisecond):
+		return nil, fmt.Errorf("timeout waiting for buffer events")
 	}
 
 	if len(formats) == 0 {
@@ -148,13 +150,13 @@ func (a *App) CaptureFrame(handle uint64) (*image.NRGBA, error) {
 
 	a.log.Debug("Available buffer formats:", "count", len(formats))
 	for i, format := range formats {
-	    a.log.Debug(fmt.Sprintf("Format %d:", i),
-	        "width", format.Width,
-	        "height", format.Height,
-	        "stride", format.Stride,
-	        "format", format.Format,
-	        "shm_format_name", client.ShmFormat(format.Format).String(),
-	    )
+		a.log.Debug(fmt.Sprintf("Format %d:", i),
+			"width", format.Width,
+			"height", format.Height,
+			"stride", format.Stride,
+			"format", format.Format,
+			"shm_format_name", client.ShmFormat(format.Format).String(),
+		)
 	}
 
 	var selected *HyprlandToplevelExportFrameV1BufferEvent
@@ -206,6 +208,8 @@ OUTER:
 	case <-ready:
 	case err := <-failed:
 		return nil, err
+	case <-time.After(500 * time.Millisecond):
+		return nil, fmt.Errorf("timeout waiting for frame ready")
 	}
 
 	data := pool.Data()
@@ -306,7 +310,14 @@ func (a *App) handleRegistryGlobal(evt client.RegistryGlobalEvent) {
 		a.shm = shm
 	case `hyprland_toplevel_export_manager_v1`:
 		tl := NewHyprlandToplevelExportManagerV1(a.display.Context())
-		if err := a.registry.Bind(evt.Name, evt.Interface, evt.Version, tl); err != nil {
+
+		// Caps at 2 since that is what the XML/generated code supports
+		bindVer := evt.Version
+		if bindVer > 2 {
+			bindVer = 2
+		}
+
+		if err := a.registry.Bind(evt.Name, evt.Interface, bindVer, tl); err != nil {
 			a.log.Error(`failed binding toplevel export manager`, `err`, err)
 			return
 		}
@@ -341,7 +352,7 @@ func (a *App) reconnect() error {
 }
 
 func (a *App) createShmPool(size int32) (*shmPool, error) {
-	fd, err := unix.MemfdSecret(0)
+	fd, err := unix.MemfdCreate("hypr-dock-shm", 0)
 	if err != nil {
 		return nil, fmt.Errorf(`failed creating memfd: %w`, err)
 	}

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/dlasky/gotk3-layershell/layershell"
+	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
 )
 
@@ -127,6 +128,12 @@ func (p *Popup) setCord() {
 	layershell.SetAnchor(p.win, ystarts[p.ystart], true)
 	layershell.SetMargin(p.win, xstarts[p.xstart], p.x)
 	layershell.SetMargin(p.win, ystarts[p.ystart], p.y)
+}
+
+func (p *Popup) SetMonitor(monitor *gdk.Monitor) {
+	if p.win != nil {
+		layershell.SetMonitor(p.win, monitor)
+	}
 }
 
 func initLayerShell(win *gtk.Window) {

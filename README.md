@@ -1,201 +1,146 @@
-# hypr-dock
+# hypr-dock & hypr-alttab
 
-### Interactive Dock Panel for Hyprland 
+### Essential Desktop Tools for Hyprland
 
-Translations: [`Русский`](https://github.com/lotos-linux/hypr-dock/blob/main/README_RU.md)
+This project provides two powerful tools to enhance your Hyprland experience:
+1.  **hypr-dock**: An interactive, customizable dock panel.
+2.  **hypr-alttab**: A Windows-style Alt-Tab switcher with workspace previews.
 
-<img width="1360" height="768" alt="250725_16h02m52s_screenshot" src="https://github.com/user-attachments/assets/041d2cf6-13ba-4c89-a960-1903073ff2d4" />
-<img width="1360" height="768" alt="250725_16h03m09s_screenshot" src="https://github.com/user-attachments/assets/0c1ad8ca-37c1-4fd6-a48d-46f74c2d2609" />
+Translations: [`Русский`](README_RU.md)
+
+<img width="1360" height="768" alt="Screenshot 1" src="https://github.com/user-attachments/assets/041d2cf6-13ba-4c89-a960-1903073ff2d4" />
 
 [![YouTube](https://img.shields.io/badge/YouTube-Video-FF0000?logo=youtube)](https://youtu.be/HHUZWHfNAl0?si=ZrRv2ggnPBEBS5oY)
-[![AUR](https://img.shields.io/badge/AUR-Package-1793D1?logo=arch-linux)](https://aur.archlinux.org/packages/hypr-dock)
 
-## Installation
+---
 
-### Dependencies
+## 🚀 Easy Installation
 
-- go (make)
-- gtk3
-- gtk-layer-shell
+We provide an interactive installer to help you set up one or both tools quickly.
 
-### Install
-! The first build may take an extremely long time due to linking with gtk3 !
-```bash
-git clone https://github.com/lotos-linux/hypr-dock.git
-cd hypr-dock
-make get
-make build
-make install
+### Prerequisites
+- `go` (golang)
+- `gtk3`, `gtk-layer-shell`
+
+### Install Steps
+1.  Clone the repository:
+    ```bash
+    git clone https://github.com/lotos-linux/hypr-dock.git
+    cd hypr-dock
+    ```
+2.  Get dependencies:
+    ```bash
+    make get
+    ```
+3.  **Run the Installer**:
+    ```bash
+    ./install.sh
+    ```
+    Follow the prompts to install **hypr-dock**, **hypr-alttab**, or both.
+
+---
+
+## 🖥️ hypr-dock (The Dock)
+
+An interactive dock panel similar to macOS or Deepin.
+
+### Launching
+Add this to your `hyprland.conf`:
+```text
+exec-once = hypr-dock
+```
+Or launch manually: `hypr-dock`
+
+### Configuration
+Config file: `~/.config/hypr-dock/config.jsonc`
+
+Key options:
+- `"Position"`: "bottom", "top", "left", "right"
+- `"Layer"`: "auto" (smart hide), "exclusive-bottom" (always visible), etc.
+- `"Preview"`: "static" (window screenshot) or "live" (experimental streaming).
+- `"Pinned"`: List of pinned apps (edit `pinned.json` manually if needed).
+
+### Themes
+Themes are in `~/.config/hypr-dock/themes/`. Change the current theme in `config.jsonc`.
+
+---
+
+## 🔄 hypr-alttab (The Switcher)
+
+A visual Alt-Tab switcher that groups windows by **Workspace** and sorts them by **Recency (MRU)**.
+
+**Demo:** [Watch on YouTube](https://www.youtube.com/watch?v=rU1Ex1y95Rs)
+
+### Features
+- **MRU Workspace Switching**: Alt-Tab cycles through workspaces based on when you last used them.
+- **Workspace Cards**: Visual groups showing all windows in a workspace.
+- **Live Previews**: Fast, cached previews of your windows.
+
+### Launching
+Add this to your `hyprland.conf`:
+```text
+# Bind Alt+Tab to hypr-alttab
+bind = ALT, Tab, exec, hypr-alttab
 ```
 
-### Uninstall
+### Configuration
+Config file: `~/.config/hypr-dock/switcher.jsonc`
+
+| Parameter | Default | Description |
+| :--- | :--- | :--- |
+| `widthPercent` | `100` | Width of the overlay (screen percentage) |
+| `heightPercent`| `60` | Height of the overlay |
+| `previewWidth` | `400` | Width of individual workspace cards (px) |
+| `cycleWorkspaces`| `true` | Cycle strictly between workspace cards |
+
+---
+
+## 🛠️ Building from Source (Advanced)
+
+If you prefer `make` commands over the installer script:
+
+**Build:**
+```bash
+make build
+# Creates bin/hypr-dock and bin/hypr-alttab
+```
+
+**Install:**
+```bash
+make install-dock   # Install only dock
+make install-alttab # Install only switcher
+make install-all    # Install both
+```
+
+**Uninstall:**
 ```bash
 make uninstall
 ```
 
-### Update
-```bash
-make update
-```
-
-### Local run (dev mode)
-```bash
-make exec
-```
-
-## Launching
-
-### Launch Parameters:
+## 🔐 Permissions
+For window previews to work, you need to allow screencopy permissions in `hyprland.conf`:
 ```text
--config string
-    config file (default "~/.config/hypr-dock")
--dev
-    enable developer mode
--theme string
-    theme dir (default "lotos")
+permission = /usr/bin/hypr-dock, screencopy, allow
+permission = /usr/bin/hypr-alttab, screencopy, allow
+``` 
+See [Hyprland Permissions Wiki](https://wiki.hypr.land/Configuring/Permissions/) for details.
+
+## ❓ Troubleshooting
+
+### Protocol Errors / Build Issues
+If you encounter errors related to Wayland protocols during the build, you may need to regenerate the Go bindings:
+
+```bash
+# Update Go Wayland library
+go get -u github.com/pdf/go-wayland@latest
+go mod tidy
+
+# Install/Update the scanner tool
+go install github.com/rajveermalviya/go-wayland/cmd/go-wayland-scanner@latest
+
+# Download latest protocol XML
+wget https://raw.githubusercontent.com/hyprwm/hyprland-protocols/main/protocols/hyprland-toplevel-export-v1.xml
+
+# Generate Go code
+$(go env GOPATH)/bin/go-wayland-scanner -i hyprland-toplevel-export-v1.xml -o pkg/wl/hyprland_toplevel_export.go -pkg wl
 ```
-#### All parameters are optional.
-
-The default configuration and themes are installed in `~/.config/hypr-dock`
-
-### Add the following to hyprland.conf for autostart:
-```text
-exec-once = hypr-dock
-bind = Super, D, exec, hypr-dock
-```
-
-#### The dock supports only one running instance, so launching it again will close the previous instance.
-
-## Configuration
-
-### The following parameters are available in config.jsonc:
-```jsonc
-{
-    "CurrentTheme": "lotos",
-
-    // Icon size (px) (default 23)
-    "IconSize": 23,
-
-    // Window overlay layer height (auto, exclusive-top, exclusive-bottom, background, bottom, top, overlay) (default "auto")
-    "Layer": "auto",
-
-    // Window position on screen (top, bottom, left, right) (default "bottom")
-    "Position": "bottom",
-
-    // Delay before hiding the dock (ms) (default 400)
-    "AutoHideDeley": 400, // *Only for "Layer": "auto"*
-
-    // Use system gap (true, false) (default "true")
-    "SystemGapUsed": "true",
-
-    // Indent from the edge of the screen (px) (default 8)
-    "Margin": 8,
-
-    // Distance of the context menu from the window (px) (default 0)
-    "ContextPos": 5,
-
-    
-    // Window thumbnail mode selection (none, live, static) (default "none")
-    "Preview": "static",
-    /*
-      "none"   - disabled (text menus)
-      "static" - last window frame (stable)
-      "live"   - window streaming (unstable) !EXPEREMENTAL!
-      
-      !WARNING! 
-      BY SETTING "Preview" TO "live" OR "static", YOU AGREE TO THE CAPTURE 
-      OF WINDOW CONTENTS.
-      THE "HYPR-DOCK" PROGRAM DOES NOT COLLECT, STORE, OR TRANSMIT ANY DATA.
-      WINDOW CAPTURE OCCURS ONLY FOR THE DURATION OF THE THUMBNAIL DISPLAY!
-      
-      Source code: https://github.com/lotos-linux/hypr-dock
-    */
-
-    "PreviewAdvanced": {
-      // Live preview fps (0 - ∞) (default 30)
-      "FPS": 30,
-
-      // Live preview bufferSize (1 - 20) (default 5)
-      "BufferSize": 5,
-
-      // Popup show/hide/move delays (ms)
-      "ShowDelay": 600, // (default 600)
-      "HideDelay": 300, // (default 300)
-      "MoveDelay": 200  // (default 200)
-    }
-}
-```
-#### If a parameter is not specified, the default value will be used.
-
-## Explanation of Non-Obvious Parameters
-### Layer
-- With `"Layer": "auto"` the dock layer is below all windows, but if you move the mouse cursor to the edge of the screen, the dock rises above them.
-- With `"Layer": "exclusive-top"` - exclusive mode is enabled on the top layer. Neither tiled nor floating windows will overlap the dock.
-- With `"Layer": "exclusive-bottom"` - exclusive mode is enabled on the bottom layer. Tiled windows won't overlap the dock. Floating windows will appear above the dock.
-### SystemGapUsed
-- With `"SystemGapUsed": "true"` the dock will set its margin from the edge of the screen based on the hyprland configuration, specifically the `general:gaps_out` value. The dock will dynamically adapt to changes in the hyprland configuration.
-- With `"SystemGapUsed": "false"` the margin from the edge of the screen will be set by the `Margin` parameter.
-
-### PreviewAdvanced
-- `ShowDelay`, `HideDelay`, `MoveDelay` - delays for preview popup actions in milliseconds.
-- `FPS`, `BufferSize` - only used with `"Preview":"live"`
-
-> Warning!
-> Live preview behaves unpredictably.
-> Currently, it is not recommended to set `"Preview": "live"`
-
-#### The appearance preview settings are configured through theme files
-
-### There is also a pinned.json file for pinned applications
-#### Example:
-```json
-{
-  "Pinned": [
-    "firefox",
-    "org.telegram.desktop",
-    "code-oss",
-    "kitty"
-  ]
-}
-```
-You can edit it manually. But why? ¯\_(ツ)_/¯
-
-## Themes
-
-#### Themes are located in the `~/.config/hypr-dock/themes/` folder
-
-### A theme consists of:
-- `[theme_name].jsonc`, for example `lotos.jsonc`
-- `style.css`
-- A folder with `svg` files for indicating the number of running applications (more [themes.md](https://github.com/lotos-linux/hypr-dock/blob/main/docs/customize/themes.md))
-
-### Theme Config
-```jsonc
-{
-    // Blur window ("true", "false") (default "on")
-    "Blur": "true",
-
-    // Distance between elements (px) (default 9)
-    "Spacing": 5,
-
-    // Preview settings
-    "PreviewStyle": {
-        // Size (px) (default 120)
-        "Size": 120,
-
-        // Image/Stream border-radius (px) (default 0)
-        "BorderRadius": 0,
-
-        // Popup padding (px) (default 10)
-        "Padding": 10
-    }
-}
-```
-#### Feel free to customize the style.css file as you like.
-
-## Libraries Used
-- [github.com/akshaybharambe14/go-jsonc](https://github.com/akshaybharambe14/go-jsonc) v1.0.0
-- [github.com/allan-simon/go-singleinstance](https://github.com/allan-simon/go-singleinstance) v0.0.0-20210120080615-d0997106ab37
-- [github.com/dlasky/gotk3-layershell](https://github.com/dlasky/gotk3-layershell) v0.0.0-20240515133811-5c5115f0d774
-- [github.com/goccy/go-json](https://github.com/goccy/go-json) v0.10.3
-- [github.com/gotk3/gotk3](https://github.com/gotk3/gotk3) v0.6.3

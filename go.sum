@@ -22,8 +22,8 @@ github.com/mattn/go-colorable v0.1.12/go.mod h1:u5H1YNBxpqRaxsYJYSkiCWKzEfiAb1Gb
 github.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Kysco4FUpU=
 github.com/mattn/go-isatty v0.0.14 h1:yVuAays6BHfxijgZPzw+3Zlu5yQgKGP2/hcQbHb7S9Y=
 github.com/mattn/go-isatty v0.0.14/go.mod h1:7GGIvUiUoEMVVmxf/4nioHXj79iQHKdU27kJ6hsGG94=
-github.com/pdf/go-wayland v0.0.2 h1:/RzSdcUN3kSgd9Dyd8j4xFDwtJpYSprXSPxJ9AWDdlI=
-github.com/pdf/go-wayland v0.0.2/go.mod h1:aJPz7VZFFutb5bx9UwD6Pzw4gYziTBf2tRZsgaKx5xA=
+github.com/pdf/go-wayland v0.0.3 h1:RCx05aXfcaE75+anTvakolpAX1YK0Ad3ya9YvXYn2aI=
+github.com/pdf/go-wayland v0.0.3/go.mod h1:aJPz7VZFFutb5bx9UwD6Pzw4gYziTBf2tRZsgaKx5xA=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

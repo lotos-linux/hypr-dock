@@ -1,0 +1,86 @@
+#!/bin/bash
+
+RESET="\033[0m"
+GREEN="\033[32m"
+YELLOW="\033[33m"
+CYAN="\033[36m"
+
+echo -e "${CYAN}--- hypr-dock & hypr-alttab Installer ---${RESET}"
+echo ""
+
+# Build first
+echo -e "${YELLOW}Building binaries...${RESET}"
+make build
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Build failed!${RESET}"
+    echo ""
+    echo -e "${YELLOW}--- TROUBLESHOOTING ---${RESET}"
+    echo -e "If you encountered errors related to Wayland protocols, you likely need to regenerate the bindings."
+    echo -e "Please run the following commands manually:"
+    echo ""
+    echo -e "  ${CYAN}go get -u github.com/pdf/go-wayland@latest${RESET}"
+    echo -e "  ${CYAN}go mod tidy${RESET}"
+    echo -e "  ${CYAN}go install github.com/rajveermalviya/go-wayland/cmd/go-wayland-scanner@latest${RESET}"
+    echo -e "  ${CYAN}wget https://raw.githubusercontent.com/hyprwm/hyprland-protocols/main/protocols/hyprland-toplevel-export-v1.xml${RESET}"
+    echo -e "  ${CYAN}\$(go env GOPATH)/bin/go-wayland-scanner -i hyprland-toplevel-export-v1.xml -o pkg/wl/hyprland_toplevel_export.go -pkg wl${RESET}"
+    echo ""
+    exit 1
+fi
+echo -e "${GREEN}Build successful.${RESET}"
+echo ""
+
+# Ask about hypr-dock
+read -p "Do you want to install hypr-dock (The Dock)? [Y/n] " install_dock
+install_dock=${install_dock:-Y}
+
+# Ask about hypr-alttab
+read -p "Do you want to install hypr-alttab (The Alt-Tab Switcher)? [Y/n] " install_alttab
+install_alttab=${install_alttab:-Y}
+
+echo ""
+
+if [[ "$install_dock" =~ ^[Yy]$ ]] && [[ "$install_alttab" =~ ^[Yy]$ ]]; then
+    echo -e "${YELLOW}Installing BOTH hypr-dock and hypr-alttab...${RESET}"
+    make install-all
+elif [[ "$install_dock" =~ ^[Yy]$ ]]; then
+    echo -e "${YELLOW}Installing ONLY hypr-dock...${RESET}"
+    make install-dock
+elif [[ "$install_alttab" =~ ^[Yy]$ ]]; then
+    echo -e "${YELLOW}Installing ONLY hypr-alttab...${RESET}"
+    make install-alttab
+else
+    echo "Nothing selected to install."
+    exit 0
+fi
+
+echo ""
+if [[ "$install_alttab" =~ ^[Yy]$ ]]; then
+    echo -e "${YELLOW}IMPORTANT: Check ~/.config/hypr-dock/switcher.jsonc to configure hypr-alttab!${RESET}"
+fi
+
+echo ""
+echo -e "${CYAN}--- Next Steps ---${RESET}"
+echo -e "Add the following to your ${YELLOW}~/.config/hypr/hyprland.conf${RESET}:"
+echo ""
+
+if [[ "$install_dock" =~ ^[Yy]$ ]]; then
+    echo -e "# Start the Dock"
+    echo -e "${GREEN}exec-once = hypr-dock${RESET}"
+    echo ""
+fi
+
+if [[ "$install_alttab" =~ ^[Yy]$ ]]; then
+    echo -e "# Bind the Alt-Tab Switcher"
+    echo -e "${GREEN}bind = ALT, Tab, exec, hypr-alttab${RESET}"
+    echo ""
+fi
+
+echo -e "# ${RED}REQUIRED PERMISSIONS${RESET} (for window previews)"
+if [[ "$install_dock" =~ ^[Yy]$ ]]; then
+    echo -e "${GREEN}permission = /usr/bin/hypr-dock, screencopy, allow${RESET}"
+fi
+if [[ "$install_alttab" =~ ^[Yy]$ ]]; then
+    echo -e "${GREEN}permission = /usr/bin/hypr-alttab, screencopy, allow${RESET}"
+fi
+echo ""
+echo -e "${GREEN}Done!${RESET}"

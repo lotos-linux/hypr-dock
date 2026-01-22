@@ -15,7 +15,8 @@ type Popup struct {
 	content        gtk.IWidget
 	xstart, ystart string
 
-	winCallBack func(*gtk.Window) error
+	winCallBack     func(*gtk.Window) error
+	winMoveCallBack func(*gtk.Window) error
 }
 
 func New() *Popup {
@@ -38,9 +39,15 @@ func (p *Popup) Open(x, y int, xstart, ystart string) error {
 	}
 
 	p.win = win
+
 	if p.winCallBack != nil {
 		p.winCallBack(win)
 	}
+
+	if p.winMoveCallBack != nil {
+		p.winMoveCallBack(win)
+	}
+
 	initLayerShell(win)
 
 	p.x = x
@@ -88,6 +95,10 @@ func (p *Popup) Set(content gtk.IWidget) error {
 }
 
 func (p *Popup) Move(x, y int) {
+	if p.winMoveCallBack != nil && p.win != nil {
+		p.winCallBack(p.win)
+	}
+
 	p.x = x
 	p.y = y
 
@@ -97,6 +108,10 @@ func (p *Popup) Move(x, y int) {
 }
 
 func (p *Popup) Shift(dx, dy int) {
+	if p.winMoveCallBack != nil && p.win != nil {
+		p.winCallBack(p.win)
+	}
+
 	p.x = p.x + dx
 	p.y = p.y + dy
 
@@ -107,6 +122,10 @@ func (p *Popup) Shift(dx, dy int) {
 
 func (p *Popup) SetWinCallBack(callback func(*gtk.Window) error) {
 	p.winCallBack = callback
+}
+
+func (p *Popup) SetWinMoveCallBack(callback func(*gtk.Window) error) {
+	p.winMoveCallBack = callback
 }
 
 func (p *Popup) setCord() {

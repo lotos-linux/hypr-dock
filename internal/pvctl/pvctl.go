@@ -69,6 +69,8 @@ func (pv *PV) Show(item *item.Item, settings settings.Settings) {
 			x, y, _ := getCord(item.Button, settings)
 
 			pv.popup.Move(x-w/2, y)
+
+			pv.hideTimer.Run(settings.PreviewAdvanced.HideDelay, hide)
 		}, true)
 	}
 
@@ -91,6 +93,11 @@ func (pv *PV) Show(item *item.Item, settings settings.Settings) {
 	})
 
 	widget, err := pvwidget.New(item, settings, func(w, h int) {
+		pv.popup.SetWinMoveCallBack(func(window *gtk.Window) error {
+			window.SetSizeRequest(-1, h+5)
+			return nil
+		})
+
 		setCord(w, h, item, settings, func(x, y int, startx, starty string, monitor *gdk.Monitor) {
 			pv.popup.Open(x, y, startx, starty)
 			if monitor != nil {
@@ -123,23 +130,6 @@ func (pv *PV) Change(item *item.Item, settings settings.Settings) {
 		fmt.Println("pv is nil:", pv == nil, "|", "item is nil:", item == nil)
 		return
 	}
-
-	hide := func() {
-		glib.IdleAdd(func() {
-			pv.Hide()
-		})
-		pv.SetActive(false)
-	}
-
-	pv.popup.SetWinCallBack(func(w *gtk.Window) error {
-		w.Connect("enter-notify-event", func() {
-			pv.hideTimer.Stop()
-		})
-		w.Connect("leave-notify-event", func() {
-			pv.hideTimer.Run(settings.PreviewAdvanced.HideDelay, hide)
-		})
-		return nil
-	})
 
 	widget, err := pvwidget.New(item, settings, func(w, h int) {
 		setCord(w, h, item, settings, func(x, y int, startx, starty string, monitor *gdk.Monitor) {

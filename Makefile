@@ -26,6 +26,11 @@ install-dock:
 	cp -r $(PROJECT_CONFIG_DIR)/* $(LOCAL_CONFIG_DIR)/
 	@echo -e "$(GREEN)hypr-dock installed.$(RESET)"
 
+update-dock:
+	-sudo killall $(EXECUTABLE_DOCK) 2>/dev/null || true
+	sudo cp $(PROJECT_BIN_DIR)/$(EXECUTABLE_DOCK) /usr/bin/
+	@echo -e "$(GREEN)hypr-dock update.$(RESET)"
+
 install-alttab:
 	-sudo killall $(EXECUTABLE_ALTTAB) 2>/dev/null || true
 	sudo cp $(PROJECT_BIN_DIR)/$(EXECUTABLE_ALTTAB) /usr/bin/

@@ -10,8 +10,6 @@ import (
 	"hypr-dock/internal/settings"
 	"hypr-dock/pkg/ipc"
 	"log"
-	"strconv"
-	"strings"
 
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/glib"
@@ -62,18 +60,6 @@ func (pv *PV) Show(item *item.Item, settings settings.Settings) {
 		hide()
 	}, true)
 
-	if settings.Position == "top" || settings.Position == "bottom" {
-		pv.closeListener = ipc.AddEventListener("hd>>close-window", func(e string) {
-			eventDetail := strings.TrimPrefix(e, "hd>>close-window>>")
-			w, _ := strconv.Atoi(eventDetail)
-			x, y, _ := getCord(item.Button, settings)
-
-			pv.popup.Move(x-w/2, y)
-
-			pv.hideTimer.Run(settings.PreviewAdvanced.HideDelay, hide)
-		}, true)
-	}
-
 	pv.popup.SetWinCallBack(func(w *gtk.Window) error {
 		w.Connect("enter-notify-event", func() {
 			pv.hideTimer.Stop()
@@ -92,7 +78,13 @@ func (pv *PV) Show(item *item.Item, settings settings.Settings) {
 		return nil
 	})
 
-	widget, err := pvwidget.New(item, settings, func(w, h int) {
+	widget, err := pvwidget.New(item, settings)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	widget.OnReady(func(w, h int) {
 		pv.popup.SetWinMoveCallBack(func(window *gtk.Window) error {
 			window.SetSizeRequest(-1, h+5)
 			return nil
@@ -105,9 +97,14 @@ func (pv *PV) Show(item *item.Item, settings settings.Settings) {
 			}
 		})
 	})
-	if err != nil {
-		log.Println(err)
-		return
+
+	if settings.Position == "top" || settings.Position == "bottom" {
+		widget.OnResize(func(w, h int) {
+			x, y, _ := getCord(item.Button, settings)
+
+			pv.popup.Move(x-w/2, y)
+			pv.hideTimer.Run(settings.PreviewAdvanced.HideDelay, hide)
+		})
 	}
 
 	pv.popup.Set(widget)
@@ -131,7 +128,13 @@ func (pv *PV) Change(item *item.Item, settings settings.Settings) {
 		return
 	}
 
-	widget, err := pvwidget.New(item, settings, func(w, h int) {
+	widget, err := pvwidget.New(item, settings)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	widget.OnReady(func(w, h int) {
 		setCord(w, h, item, settings, func(x, y int, startx, starty string, monitor *gdk.Monitor) {
 			pv.popup.Move(x, y)
 			if monitor != nil {
@@ -139,10 +142,6 @@ func (pv *PV) Change(item *item.Item, settings settings.Settings) {
 			}
 		})
 	})
-	if err != nil {
-		log.Println(err)
-		return
-	}
 
 	pv.popup.Set(widget)
 }

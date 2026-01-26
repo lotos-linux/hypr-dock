@@ -3,7 +3,6 @@ package pvctl
 import (
 	"fmt"
 	"hypr-dock/internal/item"
-	layerinfo "hypr-dock/internal/layerInfo"
 	"hypr-dock/internal/pkg/popup"
 	"hypr-dock/internal/pkg/timer"
 	"hypr-dock/internal/pvwidget"
@@ -26,8 +25,9 @@ type PV struct {
 	className string
 	popup     *popup.Popup
 
-	focusListener *ipc.EventListener
-	closeListener *ipc.EventListener
+	onEnter func(w *gtk.Window, e *gdk.Event)
+	onLeave func(w *gtk.Window, e *gdk.Event)
+	onEmpty func()
 }
 
 func New(settings settings.Settings) *PV {
@@ -38,112 +38,190 @@ func New(settings settings.Settings) *PV {
 		hideTimer: timer.New(),
 		moveTimer: timer.New(),
 
+		onEmpty: func() { log.Printf("Debug: all window closed") },
+
 		popup: popup.New(),
 	}
 }
 
 func (pv *PV) Show(item *item.Item, settings settings.Settings) {
-	if pv == nil || item == nil {
-		fmt.Println("pv is nil:", pv == nil, "|", "item is nil:", item == nil)
-		return
-	}
-
-	hide := func() {
-		glib.IdleAdd(func() {
-			pv.Hide()
-		})
-		pv.SetActive(false)
-	}
-
-	pv.focusListener = ipc.AddEventListener("hd>>focus-window", func(e string) {
-		pv.showTimer.Stop()
-		hide()
-	}, true)
-
-	pv.popup.SetWinCallBack(func(w *gtk.Window) error {
-		w.Connect("enter-notify-event", func() {
-			pv.hideTimer.Stop()
-			ipc.DispatchEvent("hd>>pv-pointer-enter")
-		})
-		w.Connect("leave-notify-event", func(w *gtk.Window, e *gdk.Event) {
-			event := gdk.EventCrossingNewFromEvent(e)
-			isInWindow := event.Detail() == 3 || event.Detail() == 4
-
-			if !isInWindow {
-				return
-			}
-			pv.hideTimer.Run(settings.PreviewAdvanced.HideDelay, hide)
-			ipc.DispatchEvent("hd>>pv-pointer-leave")
-		})
-		return nil
+	glib.IdleAdd(func() {
+		pv.show(item, settings)
 	})
-
-	widget, err := pvwidget.New(item, settings)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	widget.OnReady(func(w, h int) {
-		pv.popup.SetWinMoveCallBack(func(window *gtk.Window) error {
-			window.SetSizeRequest(-1, h+5)
-			return nil
-		})
-
-		setCord(w, h, item, settings, func(x, y int, startx, starty string, monitor *gdk.Monitor) {
-			pv.popup.Open(x, y, startx, starty)
-			if monitor != nil {
-				pv.popup.SetMonitor(monitor)
-			}
-		})
-	})
-
-	if settings.Position == "top" || settings.Position == "bottom" {
-		widget.OnResize(func(w, h int) {
-			x, y, _ := getCord(item.Button, settings)
-
-			pv.popup.Move(x-w/2, y)
-			pv.hideTimer.Run(settings.PreviewAdvanced.HideDelay, hide)
-		})
-	}
-
-	pv.popup.Set(widget)
-}
-
-func (pv *PV) Hide() {
-	pv.popup.Close()
-
-	if pv.focusListener != nil {
-		pv.focusListener.Remove()
-	}
-
-	if pv.closeListener != nil {
-		pv.closeListener.Remove()
-	}
+	pv.SetActive(true)
 }
 
 func (pv *PV) Change(item *item.Item, settings settings.Settings) {
-	if pv == nil || item == nil {
-		fmt.Println("pv is nil:", pv == nil, "|", "item is nil:", item == nil)
+	glib.IdleAdd(func() {
+		pv.change(item, settings)
+	})
+}
+
+func (pv *PV) Hide() {
+	glib.IdleAdd(func() {
+		pv.hide()
+	})
+	pv.SetActive(false)
+}
+
+func (pv *PV) show(item *item.Item, settings settings.Settings) {
+	if pv == nil {
+		fmt.Printf("Debug: pv is nil")
 		return
 	}
 
+	if item == nil {
+		fmt.Printf("Debug: item is nill")
+		return
+	}
+
+	// widget settings
 	widget, err := pvwidget.New(item, settings)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
+	widget.OnResize(func(w, h int) {
+		pv.resize(item, settings, w, h)
+	})
+
+	widget.OnClick(func(c *ipc.Client) {
+		log.Printf("Debug: %s window focused (%s)", c.Title, c.Address)
+
+		pv.showTimer.Stop()
+		pv.Hide()
+	})
+
+	widget.OnEmpty(func() {
+		pv.onEmpty()
+		pv.showTimer.Stop()
+		pv.Hide()
+	})
+
 	widget.OnReady(func(w, h int) {
-		setCord(w, h, item, settings, func(x, y int, startx, starty string, monitor *gdk.Monitor) {
-			pv.popup.Move(x, y)
-			if monitor != nil {
-				pv.popup.SetMonitor(monitor)
-			}
+		pv.popup.SetWinCallBack(func(window *gtk.Window) error {
+			window.SetSizeRequest(-1, h+5)
+			return pv.popupWinSet(settings, window)
 		})
+
+		target, orig := prepareCord(w, h, item, settings)
+		if orig.Monitor != nil {
+			pv.popup.SetMonitor(orig.Monitor)
+		}
+
+		err := pv.popup.Open(target.x, target.y, target.anchorX, target.anchorY)
+		if err != nil {
+			log.Println("Error: faild open preview popup:", err)
+		}
 	})
 
 	pv.popup.Set(widget)
+}
+
+func (pv *PV) change(item *item.Item, settings settings.Settings) {
+	if pv == nil {
+		fmt.Printf("Debug: pv is nil")
+		return
+	}
+
+	if item == nil {
+		fmt.Printf("Debug: item is nill")
+		return
+	}
+
+	// widget recreate
+	widget, err := pvwidget.New(item, settings)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	widget.OnResize(func(w, h int) {
+		pv.resize(item, settings, w, h)
+	})
+
+	widget.OnClick(func(c *ipc.Client) {
+		log.Printf("Debug: %s window focused (%s)", c.Title, c.Address)
+
+		pv.showTimer.Stop()
+		pv.Hide()
+	})
+
+	widget.OnEmpty(func() {
+		pv.onEmpty()
+		pv.showTimer.Stop()
+		pv.Hide()
+	})
+
+	widget.OnReady(func(w, h int) {
+		target, _ := prepareCord(w, h, item, settings)
+		pv.popup.Move(target.x, target.y)
+	})
+
+	pv.popup.Set(widget)
+}
+
+func (pv *PV) hide() {
+	pv.popup.Close()
+}
+
+func (pv *PV) popupWinSet(settings settings.Settings, w *gtk.Window) error {
+	w.Connect("enter-notify-event", func(w *gtk.Window, e *gdk.Event) {
+		pv.hideTimer.Stop()
+
+		if pv.onEnter != nil {
+			pv.onEnter(w, e)
+		}
+
+		// ipc.DispatchEvent("hd>>pv-pointer-enter")
+	})
+	w.Connect("leave-notify-event", func(w *gtk.Window, e *gdk.Event) {
+		event := gdk.EventCrossingNewFromEvent(e)
+		isInWindow := event.Detail() == 3 || event.Detail() == 4
+
+		if !isInWindow {
+			return
+		}
+		pv.hideTimer.Run(settings.PreviewAdvanced.HideDelay, pv.Hide)
+
+		if pv.onLeave != nil {
+			pv.onLeave(w, e)
+		}
+
+		// ipc.DispatchEvent("hd>>pv-pointer-leave")
+	})
+	return nil
+}
+
+func (pv *PV) resize(item *item.Item, settings settings.Settings, w, h int) {
+	horizontal := settings.Position == "top" || settings.Position == "bottom"
+
+	if horizontal {
+		// get item buttom cord
+		cord, err := item.GetCord(settings)
+		if err != nil {
+			log.Println(err)
+		}
+
+		// move
+		pv.popup.Move(cord.CX-w/2, cord.CY)
+
+		// hide if mouse not in popup (if in popup, enter pointer evets stoped timer)
+		pv.hideTimer.Run(settings.PreviewAdvanced.HideDelay, pv.Hide)
+	}
+}
+
+func (pv *PV) OnEnter(handler func(w *gtk.Window, e *gdk.Event)) {
+	pv.onEnter = handler
+}
+
+func (pv *PV) OnLeave(handler func(w *gtk.Window, e *gdk.Event)) {
+	pv.onLeave = handler
+}
+
+func (pv *PV) OnEmpty(handler func()) {
+	pv.onEmpty = handler
 }
 
 func (pv *PV) SetActive(flag bool) {
@@ -174,98 +252,50 @@ func (pv *PV) SetCurrentClass(className string) {
 	pv.className = className
 }
 
-func getCord(v *gtk.Button, settings settings.Settings) (int, int, error) {
-	margin := settings.ContextPos
-	pos := settings.Position
-
-	dock, err := layerinfo.GetDock()
-	if err != nil {
-		log.Println(err)
-		return 0, 0, err
-	}
-
-	var x int
-	var y int
-
-	// Add monitor offset
-	monitors, err := ipc.GetMonitors()
-	if err != nil {
-		log.Println("Error getting monitors:", err)
-	} else {
-		for _, m := range monitors {
-			if m.Name == dock.Monitor {
-				x += m.X
-				y += m.Y
-				break
-			}
-		}
-	}
-
-	switch pos {
-	case "bottom", "top":
-		x += dock.X + v.GetAllocation().GetX() + v.GetAllocatedWidth()/2
-		y += margin
-	case "left", "right":
-		x += margin
-		y += dock.Y + v.GetAllocation().GetY() + v.GetAllocatedHeight()/2
-	}
-
-	switch pos {
-	case "bottom", "top":
-		y += dock.H
-	case "left", "right":
-		x += dock.W
-	}
-
-	return x, y, nil
+type popupTarget struct {
+	x, y             int
+	anchorX, anchorY string
 }
 
-func setCord(w, h int, item *item.Item, settings settings.Settings, callBack func(x, y int, startx, starty string, monitor *gdk.Monitor)) {
-	x, y, _ := getCord(item.Button, settings)
-	var startx, starty string
+func prepareCord(w, h int, item *item.Item, settings settings.Settings) (target popupTarget, orig *item.Position) {
+	orig, err := item.GetCord(settings)
+	if err != nil {
+		log.Println(err)
+	}
 
+	target = popupTarget{}
+
+	// Anchor
 	switch settings.Position {
 	case "bottom":
-		startx = "left"
-		starty = "bottom"
+		target.anchorX = "left"
+		target.anchorY = "bottom"
 
 	case "right":
-		startx = "right"
-		starty = "top"
+		target.anchorX = "right"
+		target.anchorY = "top"
 
 	case "left", "top":
-		startx = "left"
-		starty = "top"
+		target.anchorX = "left"
+		target.anchorY = "top"
 	}
 
-	// Calculate global coordinates first
+	// Popup center
 	switch settings.Position {
 	case "bottom", "top":
-		// center horizontally
-		x = x - w/2
+		target.x = orig.CX - w/2
+		target.y = orig.CY
 	case "left", "right":
-		// center vertically
-		y = y - h/2
+		target.y = orig.CY - h/2
+		target.x = orig.CX
 	}
 
-	var monitor *gdk.Monitor
-	display, err := gdk.DisplayGetDefault()
-	if err == nil {
-		// Use the center point of the dock item to find the monitor
-		ox, oy, _ := getCord(item.Button, settings)
-
-		monitor, err = display.GetMonitorAtPoint(ox, oy)
-		if err == nil {
-			geo := monitor.GetGeometry()
-			// Translate global (x, y) to relative (x - geo.X, y - geo.Y)
-			// But careful using GetX() / GetY() for Rectangle
-			relX := x - geo.GetX()
-			relY := y - geo.GetY()
-
-			x = relX
-			y = relY
-		}
+	// Translate global (x, y) to relative (x - geo.X, y - geo.Y)
+	if orig.Monitor != nil {
+		geo := orig.Monitor.GetGeometry()
+		target.x -= geo.GetX()
+		target.y -= geo.GetY()
 	}
 
-	callBack(x, y, startx, starty, monitor)
+	return target, orig
 }

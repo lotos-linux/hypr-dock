@@ -8,6 +8,7 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 
 	"hypr-dock/internal/desktop"
+	layerinfo "hypr-dock/internal/layerInfo"
 	"hypr-dock/internal/pkg/cfg"
 	"hypr-dock/internal/pkg/indicator"
 	"hypr-dock/internal/pkg/utils"
@@ -157,6 +158,84 @@ func (item *Item) TogglePin(settings settings.Settings) {
 func (item *Item) Remove() {
 	item.ButtonBox.Destroy()
 	delete(item.List, item.ClassName)
+}
+
+type Position struct {
+	X, Y       int
+	CX, CY     int
+	RelX, RelY int
+
+	W, H    int
+	Monitor *gdk.Monitor
+}
+
+func (Item *Item) GetCord(settings settings.Settings) (*Position, error) {
+	margin := settings.ContextPos
+	pos := settings.Position
+	v := Item.Button
+
+	result := &Position{
+		RelX: v.GetAllocation().GetX(),
+		RelY: v.GetAllocation().GetY(),
+
+		W: v.GetAllocatedWidth(),
+		H: v.GetAllocatedHeight(),
+
+		X: 0,
+		Y: 0,
+	}
+
+	// get main layer info
+	dock, err := layerinfo.GetDock()
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	// Add monitor offset
+	monitors, err := ipc.GetMonitors()
+	if err != nil {
+		log.Println("Error getting monitors:", err)
+	} else {
+		for _, m := range monitors {
+			if m.Name == dock.Monitor {
+				result.X = m.X
+				result.Y = m.Y
+				break
+			}
+		}
+	}
+
+	// get coord with centring
+	switch pos {
+	case "bottom", "top":
+		result.CX = result.X + dock.X + result.RelX + result.W/2
+		result.CY = result.Y + margin + dock.H
+	case "left", "right":
+		result.CX = result.X + margin + dock.W
+		result.CY = result.Y + dock.Y + result.RelY + result.H/2
+	}
+
+	log.Println(result.CY)
+
+	// get absolute coord
+	result.X = result.RelX + dock.X
+	result.Y = result.RelY + dock.Y
+
+	// Monitor
+	display, err := gdk.DisplayGetDefault()
+	if err != nil {
+		return result, err
+	}
+
+	monitor, err := display.GetMonitorAtPoint(result.X, result.Y)
+	if err != nil {
+		return result, err
+	}
+
+	result.Monitor = monitor
+
+	return result, nil
 }
 
 func appendInducator(parent *gtk.Box, child *gtk.Image, pos string) {

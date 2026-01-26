@@ -51,6 +51,8 @@ func AddEventListener(event string, handler func(string), running bool) *EventLi
 }
 
 func DispatchEvent(event string) {
+	// log.Printf("IPC Debug: event: %s", event)
+
 	em := getEventManager()
 	em.mu.Lock()
 	defer em.mu.Unlock()

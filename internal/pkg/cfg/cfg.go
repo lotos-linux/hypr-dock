@@ -18,7 +18,7 @@ type Config struct {
 	Position        string
 	Blur            string
 	Spacing         int
-	AutoHideDeley   int
+	AutoHideDelay   int
 	SystemGapUsed   string
 	Margin          int
 	ContextPos      int
@@ -60,7 +60,7 @@ func GetDefaultConfig() Config {
 		Blur:          "true",
 		Spacing:       8,
 		SystemGapUsed: "true",
-		AutoHideDeley: 400,
+		AutoHideDelay: 400,
 		Margin:        8,
 		ContextPos:    5,
 		Preview:       "none",

@@ -11,7 +11,7 @@
     "Position": "bottom",
 
     // Delay before hiding the dock (ms) (default 400)
-    "AutoHideDeley": 400, // *Only for "Layer": "auto"*
+    "AutoHideDelay": 400, // *Only for "Layer": "auto"*
 
     // Use system gap (true, false) (default "true")
     "SystemGapUsed": "true",
@@ -24,7 +24,7 @@
 
     
     // Window thumbnail mode selection (none, live, static) (default "none")
-    "Preview": "none",
+    "Preview": "static",
     /*
       "none"   - disabled (text menus)
       "static" - last window frame (stable)

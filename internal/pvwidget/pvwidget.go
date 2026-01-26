@@ -22,11 +22,16 @@ type Widget struct {
 	totalWidth    int
 	commonHeight  int
 	mutex         sync.Mutex
-	*gtk.Box
+
 	settings settings.Settings
 	item     *item.Item
+
 	onReady  func(w, h int)
 	onResize func(w, h int)
+	onClick  func(*ipc.Client)
+	onEmpty  func()
+
+	*gtk.Box
 }
 
 func New(item *item.Item, settings settings.Settings) (*Widget, error) {
@@ -127,7 +132,10 @@ func (w *Widget) createWindowWidget(window *ipc.Client) error {
 
 	eventBox.Connect("button-press-event", func(eb *gtk.EventBox, e *gdk.Event) {
 		go ipc.Hyprctl("dispatch focuswindow address:" + window.Address)
-		go ipc.DispatchEvent("hd>>focus-window")
+
+		if w.onClick != nil {
+			w.onClick(window)
+		}
 	})
 
 	context, err := windowBox.GetStyleContext()
@@ -155,7 +163,7 @@ func (w *Widget) createWindowWidget(window *ipc.Client) error {
 		closeBtn.Connect("button-press-event", func() {
 			go ipc.Hyprctl("dispatch closewindow address:" + window.Address)
 			if len(w.item.Windows) == 1 {
-				go ipc.DispatchEvent("hd>>focus-window")
+				w.onEmpty()
 				return
 			}
 
@@ -164,8 +172,8 @@ func (w *Widget) createWindowWidget(window *ipc.Client) error {
 
 			w.totalWidth = w.totalWidth - s.W - padding*2 - w.settings.ContextPos
 
-			// go ipc.DispatchEvent(fmt.Sprintf("hd>>close-window>>%d", w.totalWidth))
 			w.onResize(w.totalWidth, w.commonHeight)
+
 			windowBox.Destroy()
 			w.ShowAll()
 		})
@@ -220,4 +228,12 @@ func (w *Widget) OnResize(handler func(w, h int)) {
 
 func (w *Widget) OnReady(handler func(w, h int)) {
 	w.onReady = handler
+}
+
+func (w *Widget) OnClick(handler func(*ipc.Client)) {
+	w.onClick = handler
+}
+
+func (w *Widget) OnEmpty(handler func()) {
+	w.onEmpty = handler
 }

@@ -3,7 +3,6 @@ package layering
 import (
 	detectzone "hypr-dock/internal/detectZone"
 	"hypr-dock/internal/state"
-	"hypr-dock/pkg/ipc"
 	"strings"
 
 	"github.com/dlasky/gotk3-layershell/layershell"
@@ -85,18 +84,6 @@ func AutoLayer(appState *state.State) {
 	DisableAutoLayer(appState)
 	window := appState.GetWindow()
 
-	ipc.AddEventListener("hd>>pv-pointer-enter", func(e string) {
-		appState.GetDockHideTimer().Stop()
-	}, true)
-
-	ipc.AddEventListener("hd>>pv-pointer-leave", func(e string) {
-		DispathLeaveEvent(window, nil, appState)
-	}, true)
-
-	ipc.AddEventListener("hd>>focus-window", func(e string) {
-		DispathLeaveEvent(window, nil, appState)
-	}, true)
-
 	enterSig := window.Connect("enter-notify-event", func(window *gtk.Window, e *gdk.Event) {
 		event := gdk.EventCrossingNewFromEvent(e)
 		isInWindow := event.Detail() == 3 || event.Detail() == 4
@@ -131,7 +118,7 @@ func DispathLeaveEvent(window *gtk.Window, e *gdk.Event, appState *state.State) 
 
 	timer := appState.GetDockHideTimer()
 
-	timer.Run(appState.Settings.AutoHideDeley, func() {
+	timer.Run(appState.Settings.AutoHideDelay, func() {
 		layershell.SetLayer(window, layershell.LAYER_SHELL_LAYER_BOTTOM)
 	})
 }

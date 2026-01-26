@@ -10,10 +10,12 @@ import (
 
 type Popup struct {
 	x, y           int
-	acitve         bool
-	win            *gtk.Window
-	content        gtk.IWidget
 	xstart, ystart string
+	acitve         bool
+
+	monitor *gdk.Monitor
+	win     *gtk.Window
+	content gtk.IWidget
 
 	winCallBack     func(*gtk.Window) error
 	winMoveCallBack func(*gtk.Window) error
@@ -48,7 +50,7 @@ func (p *Popup) Open(x, y int, xstart, ystart string) error {
 		p.winMoveCallBack(win)
 	}
 
-	initLayerShell(win)
+	p.initLayerShell()
 
 	p.x = x
 	p.y = y
@@ -120,6 +122,10 @@ func (p *Popup) Shift(dx, dy int) {
 	}
 }
 
+func (p *Popup) SetMonitor(monitor *gdk.Monitor) {
+	p.monitor = monitor
+}
+
 func (p *Popup) SetWinCallBack(callback func(*gtk.Window) error) {
 	p.winCallBack = callback
 }
@@ -149,15 +155,10 @@ func (p *Popup) setCord() {
 	layershell.SetMargin(p.win, ystarts[p.ystart], p.y)
 }
 
-func (p *Popup) SetMonitor(monitor *gdk.Monitor) {
-	if p.win != nil {
-		layershell.SetMonitor(p.win, monitor)
-	}
-}
-
-func initLayerShell(win *gtk.Window) {
-	layershell.InitForWindow(win)
-	layershell.SetNamespace(win, "dock-popup")
-	layershell.SetLayer(win, layershell.LAYER_SHELL_LAYER_TOP)
-	layershell.SetExclusiveZone(win, -1)
+func (p *Popup) initLayerShell() {
+	layershell.InitForWindow(p.win)
+	layershell.SetNamespace(p.win, "dock-popup")
+	layershell.SetMonitor(p.win, p.monitor)
+	layershell.SetLayer(p.win, layershell.LAYER_SHELL_LAYER_TOP)
+	layershell.SetExclusiveZone(p.win, -1)
 }

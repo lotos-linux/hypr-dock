@@ -24,7 +24,7 @@
 
     
     // Window thumbnail mode selection (none, live, static) (default "none")
-    "Preview": "static",
+    "Preview": "none",
     /*
       "none"   - disabled (text menus)
       "static" - last window frame (stable)

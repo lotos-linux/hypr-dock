@@ -22,13 +22,19 @@ type Widget struct {
 	totalWidth    int
 	commonHeight  int
 	mutex         sync.Mutex
-	*gtk.Box
+
 	settings settings.Settings
 	item     *item.Item
+
 	onReady  func(w, h int)
+	onResize func(w, h int)
+	onClick  func(*ipc.Client)
+	onEmpty  func()
+
+	*gtk.Box
 }
 
-func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (*Widget, error) {
+func New(item *item.Item, settings settings.Settings) (*Widget, error) {
 	wrapper, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, settings.ContextPos)
 	if err != nil {
 		return nil, err
@@ -39,7 +45,8 @@ func New(item *item.Item, settings settings.Settings, onReady func(w, h int)) (*
 		Box:      wrapper,
 		settings: settings,
 		item:     item,
-		onReady:  onReady,
+		onReady:  func(w, h int) { log.Printf("PV Widget ready - w: %d; h: %d", w, h) },
+		onResize: func(w, h int) { log.Printf("PV Widget resize - w: %d; h: %d", w, h) },
 	}
 
 	log.Printf("DEBUG PV: Creating preview for %s, window count: %d", item.ClassName, len(item.Windows))
@@ -125,7 +132,10 @@ func (w *Widget) createWindowWidget(window *ipc.Client) error {
 
 	eventBox.Connect("button-press-event", func(eb *gtk.EventBox, e *gdk.Event) {
 		go ipc.Hyprctl("dispatch focuswindow address:" + window.Address)
-		go ipc.DispatchEvent("hd>>focus-window")
+
+		if w.onClick != nil {
+			w.onClick(window)
+		}
 	})
 
 	context, err := windowBox.GetStyleContext()
@@ -153,7 +163,7 @@ func (w *Widget) createWindowWidget(window *ipc.Client) error {
 		closeBtn.Connect("button-press-event", func() {
 			go ipc.Hyprctl("dispatch closewindow address:" + window.Address)
 			if len(w.item.Windows) == 1 {
-				go ipc.DispatchEvent("hd>>focus-window")
+				w.onEmpty()
 				return
 			}
 
@@ -162,7 +172,8 @@ func (w *Widget) createWindowWidget(window *ipc.Client) error {
 
 			w.totalWidth = w.totalWidth - s.W - padding*2 - w.settings.ContextPos
 
-			go ipc.DispatchEvent(fmt.Sprintf("hd>>close-window>>%d", w.totalWidth))
+			w.onResize(w.totalWidth, w.commonHeight)
+
 			windowBox.Destroy()
 			w.ShowAll()
 		})
@@ -209,4 +220,20 @@ func (w *Widget) createWindowWidget(window *ipc.Client) error {
 	w.Add(windowBox)
 
 	return nil
+}
+
+func (w *Widget) OnResize(handler func(w, h int)) {
+	w.onResize = handler
+}
+
+func (w *Widget) OnReady(handler func(w, h int)) {
+	w.onReady = handler
+}
+
+func (w *Widget) OnClick(handler func(*ipc.Client)) {
+	w.onClick = handler
+}
+
+func (w *Widget) OnEmpty(handler func()) {
+	w.onEmpty = handler
 }

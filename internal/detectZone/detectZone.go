@@ -36,7 +36,7 @@ func Init(appState *state.State) {
 	detectArea.Connect("leave-notify-event", func(detectWindow *gtk.Window, e *gdk.Event) {
 		timer := appState.GetDockHideTimer()
 
-		timer.Run(appState.Settings.AutoHideDeley, func() {
+		timer.Run(appState.Settings.AutoHideDelay, func() {
 			layershell.SetLayer(window, layershell.LAYER_SHELL_LAYER_BOTTOM)
 		})
 	})

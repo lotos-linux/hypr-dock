@@ -18,6 +18,8 @@ type Control struct {
 	zeroHandler   func()
 	singleHandler func()
 	multiHandler  func()
+
+	onContext func()
 }
 
 func New(item *item.Item, appState *state.State) *Control {
@@ -65,6 +67,8 @@ func New(item *item.Item, appState *state.State) *Control {
 }
 
 func (c *Control) Init() {
+	c.connectContextMenu()
+
 	leftClick(c.item.Button, func(e *gdk.Event) {
 		instances := len(c.item.Windows)
 
@@ -92,8 +96,14 @@ func (c *Control) ResetMulti(newHandler func()) {
 	c.multiHandler = newHandler
 }
 
-func ConnectContextMenu(item *item.Item, appState *state.State) {
+func (c *Control) OnContextOpen(handler func()) {
+	c.onContext = handler
+}
+
+func (c *Control) connectContextMenu() {
+	appState := c.appState
 	settings := appState.GetSettings()
+	item := c.item
 
 	item.Button.Connect("button-release-event", func(button *gtk.Button, e *gdk.Event) {
 		event := gdk.EventButtonNewFromEvent(e)
@@ -112,7 +122,11 @@ func ConnectContextMenu(item *item.Item, appState *state.State) {
 
 			firstg, secondg := getGravity(settings.Position)
 			menu.PopupAtRect(win, zone, firstg, secondg, nil)
-			ipc.DispatchEvent("hd>>open-context")
+
+			if c.onContext != nil {
+				c.onContext()
+			}
+
 			menu.Connect("deactivate", func() {
 				ipc.DispatchEvent("hd>>close-context")
 				dispather(appState, item.Button)

@@ -52,7 +52,8 @@ func New(item *item.Item, appState *state.State) *Control {
 		firstg, secondg := getGravity(settings.Position)
 		menu.PopupAtRect(win, zone, firstg, secondg, nil)
 		menu.Connect("deactivate", func() {
-			dispather(appState, item.Button)
+			item.Button.SetStateFlags(gtk.STATE_FLAG_NORMAL, true)
+			appState.GetLayerctl().SendUnfocus()
 		})
 	}
 
@@ -128,8 +129,8 @@ func (c *Control) connectContextMenu() {
 			}
 
 			menu.Connect("deactivate", func() {
-				ipc.DispatchEvent("hd>>close-context")
-				dispather(appState, item.Button)
+				item.Button.SetStateFlags(gtk.STATE_FLAG_NORMAL, true)
+				appState.GetLayerctl().SendUnfocus()
 			})
 
 			return

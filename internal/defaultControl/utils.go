@@ -1,8 +1,6 @@
 package defaultcontrol
 
 import (
-	"hypr-dock/internal/state"
-
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
 )
@@ -14,13 +12,6 @@ func leftClick(btn *gtk.Button, handler func(e *gdk.Event)) {
 			handler(e)
 		}
 	})
-}
-
-func dispather(appState *state.State, btn *gtk.Button) {
-	btn.SetStateFlags(gtk.STATE_FLAG_NORMAL, true)
-	if appState.GetSettings().Layer == "auto" {
-		appState.GetLayerctl().SendFocus()
-	}
 }
 
 func getActivateZone(v *gtk.Button, margin int, pos string) (*gdk.Window, *gdk.Rectangle, error) {

@@ -1,7 +1,4 @@
 {
-    // Blur window ("true", "false") (default "on")
-    "Blur": "true",
-
     // Distance between elements (px) (default 9)
     "Spacing": 5,
 

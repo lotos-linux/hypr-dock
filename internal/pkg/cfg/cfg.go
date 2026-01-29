@@ -15,8 +15,9 @@ type Config struct {
 	CurrentTheme    string
 	IconSize        int
 	Layer           string
+	Exclusive       string
+	SmartView       string
 	Position        string
-	Blur            string
 	Spacing         int
 	AutoHideDelay   int
 	SystemGapUsed   string
@@ -55,9 +56,10 @@ func GetDefaultConfig() Config {
 	return Config{
 		CurrentTheme:  "lotos",
 		IconSize:      21,
-		Layer:         "auto",
+		Layer:         "top",
+		Exclusive:     "true",
+		SmartView:     "false",
 		Position:      "bottom",
-		Blur:          "true",
 		Spacing:       8,
 		SystemGapUsed: "true",
 		AutoHideDelay: 400,
@@ -106,15 +108,22 @@ func ReadConfig(jsoncFile string, themesDir string) Config {
 	}
 
 	if !validate.Layer(config.Layer, false) {
+		ValidWarn("Layer", config.Layer, GetDefaultConfig().Layer, jsoncFile)
 		config.Layer = GetDefaultConfig().Layer
+	}
+
+	if !validate.Boolen(config.Exclusive) {
+		ValidWarn("Exclusive", config.Exclusive, GetDefaultConfig().Exclusive, jsoncFile)
+		config.Exclusive = GetDefaultConfig().Exclusive
+	}
+
+	if !validate.Boolen(config.SmartView) {
+		ValidWarn("SmartView", config.SmartView, GetDefaultConfig().SmartView, jsoncFile)
+		config.SmartView = GetDefaultConfig().SmartView
 	}
 
 	if !validate.Position(config.Position, false) {
 		config.Position = GetDefaultConfig().Position
-	}
-
-	if !validate.Blur(config.Blur, false) {
-		config.Blur = GetDefaultConfig().Blur
 	}
 
 	if !validate.SystemGapUsed(config.SystemGapUsed, false) {
@@ -155,10 +164,6 @@ func ReadTheme(jsoncFile string, config Config) *ThemeConfig {
 	}
 
 	// Set default values ​​if not specified
-	if !validate.Blur(config.Blur, false) {
-		themeConfig.Blur = config.Blur
-	}
-
 	if themeConfig.Spacing < 0 {
 		themeConfig.Spacing = config.Spacing
 	}
@@ -260,4 +265,9 @@ func WriteItemList(jsonFile string, data ItemList) error {
 	}
 
 	return nil
+}
+
+func ValidWarn(key string, value string, defaultVal, file string) {
+	log.Printf("ERROR: config value \"%s\":\"%s\" is not valid in file: %s", key, value, file)
+	log.Printf("DEBUG: default value \"%s\":\"%s\" is used", key, defaultVal)
 }

@@ -2,31 +2,33 @@ package layering
 
 import (
 	detectzone "hypr-dock/internal/detectZone"
-	"hypr-dock/internal/state"
-	"strings"
+	"hypr-dock/internal/pkg/timer"
+	"hypr-dock/internal/settings"
 
 	"github.com/dlasky/gotk3-layershell/layershell"
 	"github.com/gotk3/gotk3/gdk"
+	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 )
 
-func SetWindowProperty(appState *state.State) {
-	window := appState.GetWindow()
-	settings := appState.GetSettings()
+type Control struct {
+	window   *gtk.Window
+	settings settings.Settings
+	da       *detectzone.DetectArea
 
-	layershell.InitForWindow(window)
-	layershell.SetNamespace(window, "hypr-dock")
+	smartEnter glib.SignalHandle
+	smartLeave glib.SignalHandle
 
-	ChangePosition(settings.Position, appState)
-	ChangeLayer(settings.Layer, appState)
+	hideTimer *timer.Timer
+	special   bool
+
+	orientation gtk.Orientation
+	edge        layershell.LayerShellEdgeFlags
+
+	layers map[string]layershell.LayerShellLayerFlags
 }
 
-func ChangeLayer(layer string, appState *state.State) {
-	window := appState.GetWindow()
-	if window == nil {
-		return
-	}
-
+func New(window *gtk.Window, settings settings.Settings) *Control {
 	layers := map[string]layershell.LayerShellLayerFlags{
 		"background": layershell.LAYER_SHELL_LAYER_BACKGROUND,
 		"bottom":     layershell.LAYER_SHELL_LAYER_BOTTOM,
@@ -34,31 +36,45 @@ func ChangeLayer(layer string, appState *state.State) {
 		"overlay":    layershell.LAYER_SHELL_LAYER_OVERLAY,
 	}
 
-	if layer == "auto" {
-		layershell.SetLayer(window, layers["bottom"])
-		layershell.SetExclusiveZone(window, 0)
-		AutoLayer(appState)
-		detectzone.Init(appState)
-		return
-	}
+	return &Control{
+		window:   window,
+		settings: settings,
 
-	DisableAutoLayer(appState)
-	if strings.Contains(layer, "exclusive") {
-		exLayer := strings.Split(layer, "-")[1]
-		layershell.SetLayer(window, layers[exLayer])
-		layershell.AutoExclusiveZoneEnable(window)
-		return
+		layers:    layers,
+		hideTimer: timer.New(),
 	}
-
-	layershell.SetLayer(window, layers[layer])
 }
 
-func ChangePosition(position string, appState *state.State) {
-	window := appState.GetWindow()
-	if window == nil {
+func (c *Control) Init() {
+	layershell.InitForWindow(c.window)
+	layershell.SetNamespace(c.window, "hypr-dock")
+
+	c.SetPosition()
+	c.SetLayer()
+}
+
+func NewInit(window *gtk.Window, settings settings.Settings) *Control {
+	ctrl := New(window, settings)
+	ctrl.Init()
+	return ctrl
+}
+
+func (c *Control) SetLayer() {
+	c.clear()
+
+	if c.settings.SmartView == "true" {
+		c.smart()
 		return
 	}
 
+	if c.settings.Exclusive == "true" {
+		layershell.AutoExclusiveZoneEnable(c.window)
+	}
+
+	layershell.SetLayer(c.window, c.layers[c.settings.Layer])
+}
+
+func (c *Control) SetPosition() {
 	oreintations := map[string]gtk.Orientation{
 		"bottom": gtk.ORIENTATION_HORIZONTAL,
 		"top":    gtk.ORIENTATION_HORIZONTAL,
@@ -73,65 +89,96 @@ func ChangePosition(position string, appState *state.State) {
 		"right":  layershell.LAYER_SHELL_EDGE_RIGHT,
 	}
 
-	layershell.SetAnchor(window, edges[position], true)
-	layershell.SetMargin(window, edges[position], 0)
+	position := c.settings.Position
 
-	appState.SetOrientation(oreintations[position])
-	appState.SetEdge(edges[position])
+	layershell.SetAnchor(c.window, edges[position], true)
+	layershell.SetMargin(c.window, edges[position], 0)
+
+	c.orientation = oreintations[position]
+	c.edge = edges[position]
 }
 
-func AutoLayer(appState *state.State) {
-	DisableAutoLayer(appState)
-	window := appState.GetWindow()
+func (c *Control) smart() {
+	layershell.SetLayer(c.window, c.layers["bottom"])
 
-	enterSig := window.Connect("enter-notify-event", func(window *gtk.Window, e *gdk.Event) {
-		event := gdk.EventCrossingNewFromEvent(e)
-		isInWindow := event.Detail() == 3 || event.Detail() == 4
+	c.da = detectzone.New(c.window, c.settings)
+	c.da.OnEnter(func() {
+		c.SendFocus()
+	})
+	c.da.OnLeave(func() {
+		c.SendUnfocus()
+	})
 
-		if !isInWindow || appState.GetSpecial() {
+	c.smartEnter = c.window.Connect("enter-notify-event", func(_ *gtk.Window, e *gdk.Event) {
+		if !is_e3e4(e) || c.special {
 			return
 		}
 
-		timer := appState.GetDockHideTimer()
-
-		timer.Stop()
-		layershell.SetLayer(window, layershell.LAYER_SHELL_LAYER_TOP)
+		c.SendFocus()
 	})
-	appState.AddSignalHandler("enter", enterSig)
 
-	leaveSig := window.Connect("leave-notify-event", func(window *gtk.Window, e *gdk.Event) {
-		DispathLeaveEvent(window, e, appState)
+	c.smartLeave = c.window.Connect("leave-notify-event", func(_ *gtk.Window, e *gdk.Event) {
+		if !is_e3e4(e) {
+			return
+		}
+
+		c.SendUnfocus()
 	})
-	appState.AddSignalHandler("leave", leaveSig)
 }
 
-func DispathLeaveEvent(window *gtk.Window, e *gdk.Event, appState *state.State) {
-	isInWindow := true
-	if e != nil {
-		event := gdk.EventCrossingNewFromEvent(e)
-		isInWindow = event.Detail() == 3 || event.Detail() == 4
+func (c *Control) clear() {
+	layershell.SetExclusiveZone(c.window, 0)
+
+	if c.da != nil {
+		c.da.Destroy()
+		c.da = nil
 	}
 
-	if !isInWindow {
+	if c.smartEnter > 0 {
+		c.window.HandlerDisconnect(c.smartEnter)
+	}
+
+	if c.smartLeave > 0 {
+		c.window.HandlerDisconnect(c.smartLeave)
+	}
+}
+
+func (c *Control) SendUnfocus() {
+	if c.settings.SmartView != "true" {
 		return
 	}
 
-	timer := appState.GetDockHideTimer()
-
-	timer.Run(appState.Settings.AutoHideDelay, func() {
-		layershell.SetLayer(window, layershell.LAYER_SHELL_LAYER_BOTTOM)
+	c.hideTimer.Run(c.settings.AutoHideDelay, func() {
+		layershell.SetLayer(c.window, layershell.LAYER_SHELL_LAYER_BOTTOM)
 	})
 }
 
-func DisableAutoLayer(appState *state.State) {
-	detectArea := appState.GetDetectArea()
-	if detectArea != nil {
-		detectArea.Destroy()
-		appState.SetDetectArea(nil)
+func (c *Control) SendFocus() {
+	if c.settings.SmartView != "true" {
+		return
 	}
 
-	window := appState.GetWindow()
+	c.hideTimer.Stop()
+	layershell.SetLayer(c.window, c.layers["top"])
+}
 
-	appState.RemoveSignalHandler("enter", window)
-	appState.RemoveSignalHandler("leave", window)
+func (c *Control) SetSpecial(is bool) {
+	c.special = is
+}
+
+func (c *Control) GetSpecial() bool {
+	return c.special
+}
+
+func (c *Control) GetOrientation() gtk.Orientation {
+	return c.orientation
+}
+
+func (c *Control) GetEdge() layershell.LayerShellEdgeFlags {
+	return c.edge
+}
+
+func is_e3e4(e *gdk.Event) bool {
+	ec := gdk.EventCrossingNewFromEvent(e)
+	return ec.Detail() == 3 || ec.Detail() == 4
 }

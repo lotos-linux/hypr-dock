@@ -44,10 +44,10 @@ func activatespecialHandler(event string, appState *state.State) {
 
 	if data[0] == "special:special" {
 		log.Println("Special workspace activated")
-		appState.SetSpecial(true)
+		appState.GetLayerctl().SetSpecial(true)
 	} else {
 		log.Println("Special workspace deactivated")
-		appState.SetSpecial(false)
+		appState.GetLayerctl().SetSpecial(false)
 	}
 }
 
@@ -83,4 +83,3 @@ func eventHandler(event string, n int) []string {
 
 	return dataParts
 }
-

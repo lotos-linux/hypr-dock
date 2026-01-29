@@ -3,7 +3,6 @@ package btnctl
 import (
 	defaultcontrol "hypr-dock/internal/defaultControl"
 	"hypr-dock/internal/item"
-	"hypr-dock/internal/layering"
 	"hypr-dock/internal/pkg/utils"
 	"hypr-dock/internal/state"
 	"hypr-dock/pkg/ipc"
@@ -95,14 +94,14 @@ func previewControl(item *item.Item, ctrl *defaultcontrol.Control, appState *sta
 
 	// send to host control signal for auto mode
 	pv.OnEnter(func(w *gtk.Window, e *gdk.Event) {
-		appState.GetDockHideTimer().Stop()
+		appState.GetLayerctl().SendFocus()
 	})
 
 	pv.OnLeave(func(w *gtk.Window, e *gdk.Event) {
-		layering.DispathLeaveEvent(appState.GetWindow(), nil, appState)
+		appState.GetLayerctl().SendUnfocus()
 	})
 
 	pv.OnEmpty(func() {
-		layering.DispathLeaveEvent(appState.GetWindow(), nil, appState)
+		appState.GetLayerctl().SendUnfocus()
 	})
 }

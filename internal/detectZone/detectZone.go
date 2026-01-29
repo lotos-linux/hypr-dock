@@ -1,7 +1,7 @@
 package detectzone
 
 import (
-	"hypr-dock/internal/state"
+	"hypr-dock/internal/settings"
 	"log"
 
 	"github.com/dlasky/gotk3-layershell/layershell"
@@ -9,45 +9,64 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 )
 
-func Init(appState *state.State) {
-	window := appState.GetWindow()
+type DetectArea struct {
+	onEnter func()
+	onLeave func()
 
-	detectArea, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
+	*gtk.Window
+}
+
+func New(mainWindow *gtk.Window, settings settings.Settings) *DetectArea {
+	detectWindow, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {
 		log.Fatal("InitDetectArea(), gtk.WindowNew() | ", err)
 	}
-	detectArea.SetName("detect")
-	detectArea.SetSizeRequest(-1, 1)
 
-	layershell.InitForWindow(detectArea)
-	layershell.SetNamespace(detectArea, "dock-detect")
-	layershell.SetLayer(detectArea, layershell.LAYER_SHELL_LAYER_TOP)
-	selectEdges(detectArea, appState)
+	da := &DetectArea{
+		Window: detectWindow,
+		onEnter: func() {
+			log.Printf("Detect enter")
+		},
+		onLeave: func() {
+			log.Printf("Detect leave")
+		},
+	}
 
-	detectArea.Connect("enter-notify-event", func(detectWindow *gtk.Window, e *gdk.Event) {
-		timer := appState.GetDockHideTimer()
-		timer.Stop()
+	da.SetName("detect")
+	da.SetSizeRequest(-1, 1)
 
-		go func() {
-			layershell.SetLayer(window, layershell.LAYER_SHELL_LAYER_TOP)
-		}()
-	})
+	layershell.InitForWindow(da.Window)
+	layershell.SetNamespace(da.Window, "dock-detect")
+	layershell.SetLayer(da.Window, layershell.LAYER_SHELL_LAYER_TOP)
 
-	detectArea.Connect("leave-notify-event", func(detectWindow *gtk.Window, e *gdk.Event) {
-		timer := appState.GetDockHideTimer()
+	da.clickes()
 
-		timer.Run(appState.Settings.AutoHideDelay, func() {
-			layershell.SetLayer(window, layershell.LAYER_SHELL_LAYER_BOTTOM)
-		})
-	})
+	selectEdges(da.Window, settings)
 
-	detectArea.ShowAll()
-	appState.SetDetectArea(detectArea)
+	da.ShowAll()
+
+	return da
 }
 
-func selectEdges(window *gtk.Window, appState *state.State) {
-	settings := appState.GetSettings()
+func (da *DetectArea) clickes() {
+	da.Connect("enter-notify-event", func(detectWindow *gtk.Window, e *gdk.Event) {
+		da.onEnter()
+	})
 
+	da.Connect("leave-notify-event", func(detectWindow *gtk.Window, e *gdk.Event) {
+		da.onLeave()
+	})
+}
+
+func (da *DetectArea) OnEnter(handler func()) {
+	da.onEnter = handler
+}
+
+func (da *DetectArea) OnLeave(handler func()) {
+	da.onLeave = handler
+}
+
+func selectEdges(window *gtk.Window, settings settings.Settings) {
 	switch settings.Position {
 	case "left":
 		layershell.SetAnchor(window, layershell.LAYER_SHELL_EDGE_BOTTOM, true)

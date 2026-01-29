@@ -1,7 +1,6 @@
 package defaultcontrol
 
 import (
-	"hypr-dock/internal/layering"
 	"hypr-dock/internal/state"
 
 	"github.com/gotk3/gotk3/gdk"
@@ -18,10 +17,9 @@ func leftClick(btn *gtk.Button, handler func(e *gdk.Event)) {
 }
 
 func dispather(appState *state.State, btn *gtk.Button) {
-	window := appState.GetWindow()
 	btn.SetStateFlags(gtk.STATE_FLAG_NORMAL, true)
 	if appState.GetSettings().Layer == "auto" {
-		layering.DispathLeaveEvent(window, nil, appState)
+		appState.GetLayerctl().SendFocus()
 	}
 }
 

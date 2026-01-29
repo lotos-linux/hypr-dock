@@ -18,7 +18,7 @@ import (
 
 func BuildApp(appState *state.State) *gtk.Box {
 	settings := appState.GetSettings()
-	orientation := appState.GetOrientation()
+	orientation := appState.GetLayerctl().GetOrientation()
 
 	app, err := gtk.BoxNew(orientation, 0)
 	if err != nil {

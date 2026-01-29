@@ -4,7 +4,6 @@ import (
 	"hypr-dock/internal/pkg/cfg"
 	"hypr-dock/internal/pkg/flags"
 	"hypr-dock/internal/pkg/utils"
-	"hypr-dock/pkg/ipc"
 	"log"
 	"os"
 	"path/filepath"
@@ -66,16 +65,8 @@ func Init() (Settings, error) {
 
 	themeConfig := cfg.ReadTheme(settings.CurrentThemeConfigPath, settings.Config)
 	if themeConfig != nil {
-		settings.Blur = themeConfig.Blur
 		settings.Spacing = themeConfig.Spacing
 		settings.PreviewStyle = themeConfig.PreviewStyle
-	}
-
-	if settings.Blur == "true" {
-		enableBlur()
-		ipc.AddEventListener("configreloaded", func(event string) {
-			go enableBlur()
-		}, true)
 	}
 
 	return settings, nil
@@ -111,12 +102,4 @@ func expandPath(path string) string {
 		return filepath.Join(home, path[2:])
 	}
 	return path
-}
-
-func enableBlur() {
-	ipc.Hyprctl("keyword layerrule blur,hypr-dock")
-	ipc.Hyprctl("keyword layerrule ignorealpha 0.1,hypr-dock")
-
-	ipc.Hyprctl("keyword layerrule blur,dock-popup")
-	ipc.Hyprctl("keyword layerrule ignorealpha 0.1,dock-popup")
 }

@@ -23,7 +23,7 @@ type Widget struct {
 	commonHeight  int
 	mutex         sync.Mutex
 
-	settings settings.Settings
+	settings *settings.Settings
 	item     *item.Item
 
 	onReady  func(w, h int)
@@ -34,7 +34,7 @@ type Widget struct {
 	*gtk.Box
 }
 
-func New(item *item.Item, settings settings.Settings) (*Widget, error) {
+func New(item *item.Item, settings *settings.Settings) (*Widget, error) {
 	wrapper, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, settings.ContextPos)
 	if err != nil {
 		return nil, err
@@ -198,8 +198,8 @@ func (w *Widget) createWindowWidget(window *ipc.Client) error {
 	stream.SetHScale(w.settings.PreviewStyle.Size)
 	stream.SetBorderRadius(w.settings.PreviewStyle.BorderRadius)
 
-	if w.settings.Preview == "live" {
-		err = stream.Start(w.settings.PreviewAdvanced.FPS, w.settings.PreviewAdvanced.BufferSize)
+	if w.settings.Preview.Mode == "live" {
+		err = stream.Start(w.settings.Preview.FPS, w.settings.Preview.BufferSize)
 	} else {
 		err = stream.CaptureFrame()
 	}

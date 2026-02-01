@@ -109,7 +109,7 @@ func (c *Control) connectContextMenu() {
 	item.Button.Connect("button-release-event", func(button *gtk.Button, e *gdk.Event) {
 		event := gdk.EventButtonNewFromEvent(e)
 		if event.Button() == 3 {
-			menu, err := item.ContextMenu(settings)
+			menu, err := item.ContextMenu()
 			if err != nil {
 				log.Println(err)
 				return

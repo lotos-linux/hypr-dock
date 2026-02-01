@@ -11,7 +11,7 @@ import (
 )
 
 type State struct {
-	settings settings.Settings
+	settings *settings.Settings
 	window   *gtk.Window
 	layerctl *layering.Control
 	itemsBox *gtk.Box
@@ -20,7 +20,7 @@ type State struct {
 	mu       sync.Mutex
 }
 
-func New(settings settings.Settings) *State {
+func New(settings *settings.Settings) *State {
 	return &State{
 		settings: settings,
 		list:     itemsctl.New(),
@@ -49,13 +49,13 @@ func (s *State) GetList() *itemsctl.List {
 	return s.list
 }
 
-func (s *State) SetSettings(settings settings.Settings) {
+func (s *State) SetSettings(settings *settings.Settings) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.settings = settings
 }
 
-func (s *State) GetSettings() settings.Settings {
+func (s *State) GetSettings() *settings.Settings {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.settings

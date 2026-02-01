@@ -23,7 +23,7 @@ type IndicatorFile struct {
 }
 
 // New creates a new indicator image based on instances count
-func New(instances int, settings settings.Settings) (*gtk.Image, error) {
+func New(instances int, settings *settings.Settings) (*gtk.Image, error) {
 	available, err := GetAvailable(settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get indicators: %w", err)
@@ -36,7 +36,7 @@ func New(instances int, settings settings.Settings) (*gtk.Image, error) {
 	}
 
 	selected := selectIndicatorFile(instances, available)
-	path := filepath.Join(settings.CurrentThemeDir, "point", selected.FullName)
+	path := filepath.Join(settings.ThemeDir, "point", selected.FullName)
 	return utils.CreateImageWidthScale(path, settings.IconSize, 0.56)
 }
 
@@ -53,8 +53,8 @@ func selectIndicatorFile(instances int, files []IndicatorFile) IndicatorFile {
 }
 
 // GetAvailable returns all valid indicator files sorted by their numeric value
-func GetAvailable(settings settings.Settings) ([]IndicatorFile, error) {
-	dirPath := filepath.Join(settings.CurrentThemeDir, "point")
+func GetAvailable(settings *settings.Settings) ([]IndicatorFile, error) {
+	dirPath := filepath.Join(settings.ThemeDir, "point")
 
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("indicator directory not found: %w", err)

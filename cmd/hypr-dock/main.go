@@ -9,10 +9,12 @@ import (
 
 	"github.com/allan-simon/go-singleinstance"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/hashicorp/go-hclog"
 
 	"hypr-dock/internal/app"
 	"hypr-dock/internal/hypr/hyprEvents"
 	"hypr-dock/internal/layering"
+	"hypr-dock/internal/pkg/flags"
 	"hypr-dock/internal/pkg/signals"
 	"hypr-dock/internal/pkg/utils"
 	"hypr-dock/internal/settings"
@@ -35,8 +37,11 @@ func main() {
 	}
 	defer lockFile.Close()
 
+	// flags
+	flags := flags.Get()
+
 	// window build
-	settings, err := settings.Init()
+	settings, err := settings.Init(flags, hclog.Default())
 	if err != nil {
 		log.Println("Settings init error: ", err)
 	}
@@ -56,7 +61,7 @@ func main() {
 	layerctl := layering.NewInit(window, settings)
 	appState.SetLayerctl(layerctl)
 
-	err = utils.AddCssProvider(settings.CurrentThemeStylePath)
+	err = utils.AddCssProvider(settings.ThemeStyle)
 	if err != nil {
 		log.Println("CSS file not found, the default GTK theme is running!\n", err)
 	}

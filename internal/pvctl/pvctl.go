@@ -24,13 +24,14 @@ type PV struct {
 
 	className string
 	popup     *popup.Popup
+	settings  *settings.Settings
 
 	onEnter func(w *gtk.Window, e *gdk.Event)
 	onLeave func(w *gtk.Window, e *gdk.Event)
 	onEmpty func()
 }
 
-func New(settings settings.Settings) *PV {
+func New(settings *settings.Settings) *PV {
 	return &PV{
 		className: "90348d332fvecs324csd4",
 
@@ -40,20 +41,21 @@ func New(settings settings.Settings) *PV {
 
 		onEmpty: func() { log.Printf("Debug: all window closed") },
 
-		popup: popup.New(),
+		popup:    popup.New(),
+		settings: settings,
 	}
 }
 
-func (pv *PV) Show(item *item.Item, settings settings.Settings) {
+func (pv *PV) Show(item *item.Item) {
 	glib.IdleAdd(func() {
-		pv.show(item, settings)
+		pv.show(item)
 	})
 	pv.SetActive(true)
 }
 
-func (pv *PV) Change(item *item.Item, settings settings.Settings) {
+func (pv *PV) Change(item *item.Item) {
 	glib.IdleAdd(func() {
-		pv.change(item, settings)
+		pv.change(item)
 	})
 }
 
@@ -64,7 +66,7 @@ func (pv *PV) Hide() {
 	pv.SetActive(false)
 }
 
-func (pv *PV) show(item *item.Item, settings settings.Settings) {
+func (pv *PV) show(item *item.Item) {
 	if pv == nil {
 		fmt.Printf("Debug: pv is nil")
 		return
@@ -76,14 +78,14 @@ func (pv *PV) show(item *item.Item, settings settings.Settings) {
 	}
 
 	// widget settings
-	widget, err := pvwidget.New(item, settings)
+	widget, err := pvwidget.New(item, pv.settings)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
 	widget.OnResize(func(w, h int) {
-		pv.resize(item, settings, w, h)
+		pv.resize(item, w, h)
 	})
 
 	widget.OnClick(func(c *ipc.Client) {
@@ -102,10 +104,10 @@ func (pv *PV) show(item *item.Item, settings settings.Settings) {
 	widget.OnReady(func(w, h int) {
 		pv.popup.SetWinCallBack(func(window *gtk.Window) error {
 			window.SetSizeRequest(-1, h+5)
-			return pv.popupWinSet(settings, window)
+			return pv.popupWinSet(window)
 		})
 
-		target, orig := prepareCord(w, h, item, settings)
+		target, orig := prepareCord(w, h, item, pv.settings)
 		if orig.Monitor != nil {
 			pv.popup.SetMonitor(orig.Monitor)
 		}
@@ -119,7 +121,7 @@ func (pv *PV) show(item *item.Item, settings settings.Settings) {
 	pv.popup.Set(widget)
 }
 
-func (pv *PV) change(item *item.Item, settings settings.Settings) {
+func (pv *PV) change(item *item.Item) {
 	if pv == nil {
 		fmt.Printf("Debug: pv is nil")
 		return
@@ -131,14 +133,14 @@ func (pv *PV) change(item *item.Item, settings settings.Settings) {
 	}
 
 	// widget recreate
-	widget, err := pvwidget.New(item, settings)
+	widget, err := pvwidget.New(item, pv.settings)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
 	widget.OnResize(func(w, h int) {
-		pv.resize(item, settings, w, h)
+		pv.resize(item, w, h)
 	})
 
 	widget.OnClick(func(c *ipc.Client) {
@@ -155,7 +157,7 @@ func (pv *PV) change(item *item.Item, settings settings.Settings) {
 	})
 
 	widget.OnReady(func(w, h int) {
-		target, _ := prepareCord(w, h, item, settings)
+		target, _ := prepareCord(w, h, item, pv.settings)
 		pv.popup.Move(target.x, target.y)
 	})
 
@@ -166,7 +168,7 @@ func (pv *PV) hide() {
 	pv.popup.Close()
 }
 
-func (pv *PV) popupWinSet(settings settings.Settings, w *gtk.Window) error {
+func (pv *PV) popupWinSet(w *gtk.Window) error {
 	w.Connect("enter-notify-event", func(w *gtk.Window, e *gdk.Event) {
 		pv.hideTimer.Stop()
 
@@ -183,7 +185,7 @@ func (pv *PV) popupWinSet(settings settings.Settings, w *gtk.Window) error {
 		if !isInWindow {
 			return
 		}
-		pv.hideTimer.Run(settings.PreviewAdvanced.HideDelay, pv.Hide)
+		pv.hideTimer.Run(pv.settings.Preview.HideDelay, pv.Hide)
 
 		if pv.onLeave != nil {
 			pv.onLeave(w, e)
@@ -194,12 +196,12 @@ func (pv *PV) popupWinSet(settings settings.Settings, w *gtk.Window) error {
 	return nil
 }
 
-func (pv *PV) resize(item *item.Item, settings settings.Settings, w, h int) {
-	horizontal := settings.Position == "top" || settings.Position == "bottom"
+func (pv *PV) resize(item *item.Item, w, h int) {
+	horizontal := pv.settings.Position == "top" || pv.settings.Position == "bottom"
 
 	if horizontal {
 		// get item buttom cord
-		cord, err := item.GetCord(settings)
+		cord, err := item.GetCord()
 		if err != nil {
 			log.Println(err)
 		}
@@ -208,7 +210,7 @@ func (pv *PV) resize(item *item.Item, settings settings.Settings, w, h int) {
 		pv.popup.Move(cord.CX-w/2, cord.CY)
 
 		// hide if mouse not in popup (if in popup, enter pointer evets stoped timer)
-		pv.hideTimer.Run(settings.PreviewAdvanced.HideDelay, pv.Hide)
+		pv.hideTimer.Run(pv.settings.Preview.HideDelay, pv.Hide)
 	}
 }
 
@@ -257,8 +259,8 @@ type popupTarget struct {
 	anchorX, anchorY string
 }
 
-func prepareCord(w, h int, item *item.Item, settings settings.Settings) (target popupTarget, orig *item.Position) {
-	orig, err := item.GetCord(settings)
+func prepareCord(w, h int, item *item.Item, settings *settings.Settings) (target popupTarget, orig *item.Position) {
+	orig, err := item.GetCord()
 	if err != nil {
 		log.Println(err)
 	}

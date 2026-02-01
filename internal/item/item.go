@@ -9,8 +9,10 @@ import (
 
 	"hypr-dock/internal/desktop"
 	layerinfo "hypr-dock/internal/layerInfo"
-	"hypr-dock/internal/pkg/cfg"
+
+	// "hypr-dock/internal/pkg/cfg"
 	"hypr-dock/internal/pkg/indicator"
+	"hypr-dock/internal/pkg/pinned"
 	"hypr-dock/internal/pkg/utils"
 	"hypr-dock/internal/settings"
 
@@ -24,11 +26,13 @@ type Item struct {
 	Button         *gtk.Button
 	ButtonBox      *gtk.Box
 	IndicatorImage *gtk.Image
-	List           map[string]*Item
-	PinnedList     *[]string
+
+	Settings   *settings.Settings
+	List       map[string]*Item
+	PinnedList *[]string
 }
 
-func New(className string, settings settings.Settings) (*Item, error) {
+func New(className string, settings *settings.Settings) (*Item, error) {
 	app := desktop.New(className)
 
 	orientation := gtk.ORIENTATION_VERTICAL
@@ -76,60 +80,62 @@ func New(className string, settings settings.Settings) (*Item, error) {
 		ButtonBox:      item,
 		App:            app,
 		ClassName:      className,
-		List:           nil,
-		PinnedList:     nil,
+
+		Settings:   settings,
+		List:       nil,
+		PinnedList: nil,
 	}, nil
 }
 
-func (item *Item) RemoveWindow(windowAddress string, settings settings.Settings) {
-	if item.IndicatorImage != nil {
-		item.IndicatorImage.Destroy()
+func (i *Item) RemoveWindow(windowAddress string) {
+	if i.IndicatorImage != nil {
+		i.IndicatorImage.Destroy()
 	}
 
-	delete(item.Windows, windowAddress)
-	instances := len(item.Windows)
+	delete(i.Windows, windowAddress)
+	instances := len(i.Windows)
 
-	newImage, err := indicator.New(instances, settings)
+	newImage, err := indicator.New(instances, i.Settings)
 	if err == nil {
-		appendInducator(item.ButtonBox, newImage, settings.Position)
+		appendInducator(i.ButtonBox, newImage, i.Settings.Position)
 	}
-	item.IndicatorImage = newImage
+	i.IndicatorImage = newImage
 
-	if instances == 0 && settings.Preview != "none" {
-		item.Button.SetTooltipText(item.App.GetName())
+	if instances == 0 && i.Settings.Preview.Mode != "none" {
+		i.Button.SetTooltipText(i.App.GetName())
 	}
 }
 
-func (item *Item) AddWindow(ipcClient ipc.Client, settings settings.Settings) {
-	if item.IndicatorImage != nil {
-		item.IndicatorImage.Destroy()
+func (i *Item) AddWindow(ipcClient ipc.Client) {
+	if i.IndicatorImage != nil {
+		i.IndicatorImage.Destroy()
 	}
 
-	item.Windows[ipcClient.Address] = &ipcClient
-	instances := len(item.Windows)
+	i.Windows[ipcClient.Address] = &ipcClient
+	instances := len(i.Windows)
 
-	indicatorImage, err := indicator.New(instances, settings)
+	indicatorImage, err := indicator.New(instances, i.Settings)
 	if err == nil {
-		appendInducator(item.ButtonBox, indicatorImage, settings.Position)
+		appendInducator(i.ButtonBox, indicatorImage, i.Settings.Position)
 	}
 
-	item.IndicatorImage = indicatorImage
+	i.IndicatorImage = indicatorImage
 
-	if instances != 0 && settings.Preview != "none" {
-		item.Button.SetTooltipText("")
+	if instances != 0 && i.Settings.Preview.Mode != "none" {
+		i.Button.SetTooltipText("")
 	}
 }
 
-func (item *Item) IsPinned() bool {
-	return slices.Contains(*item.PinnedList, item.ClassName)
+func (i *Item) IsPinned() bool {
+	return slices.Contains(*i.PinnedList, i.ClassName)
 }
 
-func (item *Item) TogglePin(settings settings.Settings) {
-	list := item.PinnedList
-	className := item.ClassName
+func (i *Item) TogglePin() {
+	list := i.PinnedList
+	className := i.ClassName
 
-	pin := item.IsPinned()
-	running := len(item.Windows) > 0
+	pin := i.IsPinned()
+	running := len(i.Windows) > 0
 
 	if pin {
 		utils.RemoveFromSliceByValue(list, className)
@@ -137,7 +143,7 @@ func (item *Item) TogglePin(settings settings.Settings) {
 	}
 
 	if pin && !running {
-		item.Remove()
+		i.Remove()
 	}
 
 	if !pin {
@@ -145,8 +151,8 @@ func (item *Item) TogglePin(settings settings.Settings) {
 		log.Println("Add:", className)
 	}
 
-	file := settings.PinnedPath
-	err := cfg.ChangeJsonPinnedApps(*list, file)
+	file := i.Settings.PinnedPath
+	err := pinned.Save(file, *list)
 	if err != nil {
 		log.Println("Error:", err)
 		return
@@ -155,9 +161,9 @@ func (item *Item) TogglePin(settings settings.Settings) {
 	log.Printf("File %s saved successfully! (%s)", file, className)
 }
 
-func (item *Item) Remove() {
-	item.ButtonBox.Destroy()
-	delete(item.List, item.ClassName)
+func (i *Item) Remove() {
+	i.ButtonBox.Destroy()
+	delete(i.List, i.ClassName)
 }
 
 type Position struct {
@@ -169,10 +175,10 @@ type Position struct {
 	Monitor *gdk.Monitor
 }
 
-func (Item *Item) GetCord(settings settings.Settings) (*Position, error) {
-	margin := settings.ContextPos
-	pos := settings.Position
-	v := Item.Button
+func (i *Item) GetCord() (*Position, error) {
+	margin := i.Settings.ContextPos
+	pos := i.Settings.Position
+	v := i.Button
 
 	result := &Position{
 		RelX: v.GetAllocation().GetX(),

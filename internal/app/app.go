@@ -73,7 +73,7 @@ func InitNewItemInIPC(ipcClient ipc.Client, appState *state.State) {
 		InitNewItemInClass(className, appState)
 	}
 
-	list.Get(className).AddWindow(ipcClient, appState.GetSettings())
+	list.Get(className).AddWindow(ipcClient)
 	appState.GetWindow().ShowAll()
 }
 
@@ -110,7 +110,7 @@ func RemoveApp(address string, appState *state.State) {
 		return
 	}
 
-	item.RemoveWindow(address, appState.GetSettings())
+	item.RemoveWindow(address)
 
 	appState.GetWindow().ShowAll()
 }
@@ -143,7 +143,7 @@ func addWindowMarginRule(app *gtk.Box, appState *state.State) {
 	var marginProvider *gtk.CssProvider
 
 	switch settings.SystemGapUsed {
-	case "true":
+	case true:
 		margin, err := hyprOpt.GetGap()
 		if err != nil {
 			log.Println(err, "\nSet margin in config")
@@ -157,7 +157,7 @@ func addWindowMarginRule(app *gtk.Box, appState *state.State) {
 			marginProvider = applyWindowMarginCSS(app, position, gap)
 			log.Println("Window margins updated successfully: ", gap)
 		})
-	case "false":
+	case false:
 		applyWindowMarginCSS(app, position, settings.Margin)
 	}
 }

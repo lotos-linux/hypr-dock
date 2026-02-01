@@ -16,7 +16,7 @@ type DetectArea struct {
 	*gtk.Window
 }
 
-func New(mainWindow *gtk.Window, settings settings.Settings) *DetectArea {
+func New(mainWindow *gtk.Window, settings *settings.Settings) *DetectArea {
 	detectWindow, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {
 		log.Fatal("InitDetectArea(), gtk.WindowNew() | ", err)
@@ -66,7 +66,7 @@ func (da *DetectArea) OnLeave(handler func()) {
 	da.onLeave = handler
 }
 
-func selectEdges(window *gtk.Window, settings settings.Settings) {
+func selectEdges(window *gtk.Window, settings *settings.Settings) {
 	switch settings.Position {
 	case "left":
 		layershell.SetAnchor(window, layershell.LAYER_SHELL_EDGE_BOTTOM, true)

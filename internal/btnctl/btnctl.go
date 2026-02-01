@@ -14,7 +14,7 @@ import (
 func Dispatch(item *item.Item, appState *state.State) {
 	ctrl := defaultcontrol.New(item, appState)
 
-	if appState.GetSettings().Preview != "none" {
+	if appState.GetSettings().Preview.Mode != "none" {
 		previewControl(item, ctrl, appState)
 		return
 	}
@@ -44,7 +44,7 @@ func previewControl(item *item.Item, ctrl *defaultcontrol.Control, appState *sta
 
 	ctrl.ResetMulti(func() {
 		if !pv.GetActive() {
-			pv.Show(item, settings)
+			pv.Show(item)
 			pv.SetCurrentClass(item.ClassName)
 		}
 	})
@@ -69,13 +69,13 @@ func previewControl(item *item.Item, ctrl *defaultcontrol.Control, appState *sta
 
 		if pv.GetActive() && pv.HasClassChanged(item.ClassName) {
 			moveTimer.Stop()
-			moveTimer.Run(settings.PreviewAdvanced.MoveDelay, func() { pv.Change(item, settings) })
+			moveTimer.Run(settings.Preview.MoveDelay, func() { pv.Change(item) })
 			pv.SetCurrentClass(item.ClassName)
 			return
 		}
 
 		if !pv.GetActive() {
-			showTimer.Run(settings.PreviewAdvanced.ShowDelay, func() { pv.Show(item, settings) })
+			showTimer.Run(settings.Preview.ShowDelay, func() { pv.Show(item) })
 			pv.SetCurrentClass(item.ClassName)
 		}
 	})
@@ -88,7 +88,7 @@ func previewControl(item *item.Item, ctrl *defaultcontrol.Control, appState *sta
 
 		showTimer.Stop()
 		if pv.GetActive() {
-			hideTimer.Run(settings.PreviewAdvanced.HideDelay, pv.Hide)
+			hideTimer.Run(settings.Preview.HideDelay, pv.Hide)
 		}
 	})
 

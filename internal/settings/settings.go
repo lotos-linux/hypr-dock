@@ -1,105 +1,97 @@
 package settings
 
 import (
-	"hypr-dock/internal/pkg/cfg"
+	"hypr-dock/internal/pkg/conf"
 	"hypr-dock/internal/pkg/flags"
-	"hypr-dock/internal/pkg/utils"
+	"hypr-dock/internal/pkg/pinned"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/hashicorp/go-hclog"
 )
 
+const APP_NAME = "hypr-dock"
+const LOCAL = ".local/share"
+
 type Settings struct {
-	cfg.Config
-	ConfigDir              string
-	ConfigPath             string
-	PinnedPath             string
-	ThemesDir              string
-	CurrentThemeDir        string
-	CurrentThemeConfigPath string
-	CurrentThemeStylePath  string
-	PinnedApps             []string
+	*conf.Config
+	LocalDir   string
+	ConfigDir  string
+	ConfigPath string
+	PinnedPath string
+	ThemesDir  string
+	ThemeStyle string
+	PinnedApps []string
 }
 
-func Init() (Settings, error) {
-	const DefaultTheme = "lotos"
+func Init(flags flags.Flags, logger hclog.Logger) (*Settings, error) {
+	var err error
 
-	var settings Settings
+	// get local app dir
+	localDir := filepath.Join(GetHome(), LOCAL, APP_NAME)
 
-	flags := flags.Get(DefaultTheme)
-
-	if flags.DevMode {
-		settings.ConfigDir = setConfigDir("dev")
-	} else {
-		settings.ConfigDir = setConfigDir("normal")
-	}
-
-	settings.PinnedPath = filepath.Join(settings.ConfigDir, "pinned.json")
-	settings.PinnedApps = cfg.ReadItemList(settings.PinnedPath)
-	defaultConfigPath := filepath.Join(settings.ConfigDir, "config.jsonc")
-
-	if flags.Config == "~/.config/hypr-dock" {
-		settings.ConfigPath = defaultConfigPath
-	} else {
-		settings.ConfigPath = expandPath(flags.Config)
-	}
-
-	settings.Config = cfg.ReadConfig(settings.ConfigPath, settings.ThemesDir)
-
-	settings.ThemesDir = filepath.Join(settings.ConfigDir, "themes")
-	settings.CurrentThemeDir = filepath.Join(settings.ThemesDir, settings.CurrentTheme)
-
-	if !utils.FileExists(settings.CurrentThemeDir) {
-		log.Println("Current theme not found (", settings.CurrentTheme, "). Loading default theme")
-
-		if settings.CurrentTheme == DefaultTheme {
-			log.Println("Default theme not found")
-		}
-
-		settings.CurrentTheme = DefaultTheme
-	}
-
-	settings.CurrentThemeStylePath = filepath.Join(settings.CurrentThemeDir, "style.css")
-	settings.CurrentThemeConfigPath = filepath.Join(settings.CurrentThemeDir, settings.CurrentTheme+".jsonc")
-
-	themeConfig := cfg.ReadTheme(settings.CurrentThemeConfigPath, settings.Config)
-	if themeConfig != nil {
-		settings.Spacing = themeConfig.Spacing
-		settings.PreviewStyle = themeConfig.PreviewStyle
-	}
-
-	return settings, nil
-}
-
-func setConfigDir(mode string) string {
-	homeDir, err := os.UserHomeDir()
+	// read pinned file
+	pinnedPath := filepath.Join(localDir, "pinned")
+	pinnedApps, err := pinned.Open(pinnedPath)
 	if err != nil {
-		log.Fatal("Home dir: " + err.Error())
+		log.Fatal(err)
 	}
 
-	exePath, err := os.Executable()
+	// main configs dir
+	configDir := getConfigDir(flags.DevMode)
+
+	// main config file
+	configPath := filepath.Join(configDir, APP_NAME, ".conf")
+	if flags.Config != "~/.config/hypr-dock" {
+		configPath = expand(flags.Config)
+	}
+
+	// themes dir
+	themesDir := filepath.Join(configDir, "themes")
+
+	// read main config and current theme config
+	config, err := conf.New(configPath, themesDir, logger)
 	if err != nil {
-		log.Fatal("Exe dir: " + err.Error())
+		log.Fatal(err)
 	}
 
-	exeDir := filepath.Dir(exePath)
+	// theme style file
+	themeStyle := filepath.Join(config.ThemeDir, "style.css")
 
-	runModes := map[string]func() string{
-		"normal": func() string {
-			return filepath.Join(homeDir, ".config/hypr-dock")
-		},
-		"dev": func() string {
-			return filepath.Join(filepath.Dir(exeDir), "configs")
-		},
-	}
-	return runModes[mode]()
+	return &Settings{
+		Config:     config,
+		LocalDir:   localDir,
+		ConfigDir:  configDir,
+		ConfigPath: configPath,
+		PinnedPath: pinnedPath,
+		ThemesDir:  themesDir,
+		ThemeStyle: themeStyle,
+		PinnedApps: pinnedApps,
+	}, nil
 }
 
-func expandPath(path string) string {
+func getConfigDir(dev bool) string {
+	if dev {
+		exe, _ := os.Executable()
+		exeDir := filepath.Dir(exe)
+		return filepath.Join(filepath.Dir(exeDir), "configs")
+	}
+
+	home := GetHome()
+	return filepath.Join(home, ".config", APP_NAME)
+}
+
+func expand(path string) string {
 	if strings.HasPrefix(path, "~/") {
 		home, _ := os.UserHomeDir()
 		return filepath.Join(home, path[2:])
 	}
 	return path
+}
+
+func GetHome() string {
+	home, _ := os.UserHomeDir()
+	return home
 }

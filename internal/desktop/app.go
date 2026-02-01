@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"hypr-dock/pkg/ini"
 	"log"
 	"strings"
 )
@@ -32,37 +33,38 @@ func New(className string) *App {
 		raw:          make(map[string]map[string]string),
 	}
 
-	raw, err := Parse(SearchDesktopFile(className))
+	raw, err := ini.GetMap(SearchDesktopFile(className), "Desktop Entry")
 	if err != nil {
+		log.Println(err)
 		return errData
 	}
 
-	general, exist := raw["desktop entry"]
+	general, exist := raw["Desktop Entry"]
 	if !exist {
 		return errData
 	}
 
-	name, ok := GetAllLocales(general, "name")
+	name, ok := GetAllLocales(general, "Name")
 	if !ok {
 		name = errData.name
 	}
 
-	comment, ok := GetAllLocales(general, "comment")
+	comment, ok := GetAllLocales(general, "Comment")
 	if !ok {
 		comment = errData.comment
 	}
 
-	icon, exist := general["icon"]
+	icon, exist := general["Icon"]
 	if !exist {
 		icon = errData.icon
 	}
 
-	exec, exist := general["exec"]
+	exec, exist := general["Exec"]
 	if !exist {
 		exec = errData.exec
 	}
 
-	singleWindowStr, exist := general["singlemainwindow"]
+	singleWindowStr, exist := general["SingleMainWindow"]
 	singleWindow := exist && singleWindowStr == "true"
 
 	actions := GetActions(raw)

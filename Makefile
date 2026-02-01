@@ -1,7 +1,7 @@
-LOCAL_CONFIG_DIR = $(HOME)/.config/hypr-dock
+SYSTEM_CONFIG_DIR = /etc/hypr-dock
 
 PROJECT_BIN_DIR = bin
-PROJECT_CONFIG_DIR = configs
+PROJECT_CONFIG_DIR = configs/default
 
 EXECUTABLE_DOCK = hypr-dock
 EXECUTABLE_ALTTAB = hypr-alttab
@@ -48,32 +48,31 @@ install: install-all
 install-dock:
 	-sudo killall $(EXECUTABLE_DOCK) 2>/dev/null || true
 	sudo cp $(PROJECT_BIN_DIR)/$(EXECUTABLE_DOCK) /usr/bin/
-	mkdir -p $(LOCAL_CONFIG_DIR)
-	cp -r $(PROJECT_CONFIG_DIR)/* $(LOCAL_CONFIG_DIR)/
-	@echo -e "$(GREEN)hypr-dock installed.$(RESET)"
+	sudo mkdir -p $(SYSTEM_CONFIG_DIR)
+	sudo cp -r $(PROJECT_CONFIG_DIR)/* $(SYSTEM_CONFIG_DIR)/
+	@echo -e "$(GREEN)hypr-dock installed. Configs copied to $(SYSTEM_CONFIG_DIR)$(RESET)"
 
 install-alttab:
 	-sudo killall $(EXECUTABLE_ALTTAB) 2>/dev/null || true
 	sudo cp $(PROJECT_BIN_DIR)/$(EXECUTABLE_ALTTAB) /usr/bin/
-	mkdir -p $(LOCAL_CONFIG_DIR)
-	# Only copy configs if they don't exist to avoid overwriting user changes, or force? 
-	# User request says "check config file", so we should ensure it exists.
-	cp -n $(PROJECT_CONFIG_DIR)/* $(LOCAL_CONFIG_DIR)/ || true
-	@echo -e "$(GREEN)hypr-alttab installed.$(RESET)"
+	sudo mkdir -p $(SYSTEM_CONFIG_DIR)
+	# Only copy configs if they don't exist to avoid overwriting user changes
+	sudo cp -n $(PROJECT_CONFIG_DIR)/* $(SYSTEM_CONFIG_DIR)/ || true
+	@echo -e "$(GREEN)hypr-alttab installed. Configs copied to $(SYSTEM_CONFIG_DIR)$(RESET)"
 
 install-all:
 	-sudo killall $(EXECUTABLE_DOCK) 2>/dev/null || true
 	-sudo killall $(EXECUTABLE_ALTTAB) 2>/dev/null || true
 	sudo cp $(PROJECT_BIN_DIR)/$(EXECUTABLE_DOCK) /usr/bin/
 	sudo cp $(PROJECT_BIN_DIR)/$(EXECUTABLE_ALTTAB) /usr/bin/
-	mkdir -p $(LOCAL_CONFIG_DIR)
-	cp -r $(PROJECT_CONFIG_DIR)/* $(LOCAL_CONFIG_DIR)/
-	@echo -e "$(GREEN)Both hypr-dock and hypr-alttab installed.$(RESET)"
+	sudo mkdir -p $(SYSTEM_CONFIG_DIR)
+	sudo cp -r $(PROJECT_CONFIG_DIR)/* $(SYSTEM_CONFIG_DIR)/
+	@echo -e "$(GREEN)Both hypr-dock and hypr-alttab installed. Configs copied to $(SYSTEM_CONFIG_DIR)$(RESET)"
 
 uninstall:
 	sudo rm -f /usr/bin/$(EXECUTABLE_DOCK)
 	sudo rm -f /usr/bin/$(EXECUTABLE_ALTTAB)
-	rm -rf $(LOCAL_CONFIG_DIR)
+	sudo rm -rf $(SYSTEM_CONFIG_DIR)
 	@echo -e "$(GREEN)Uninstalled.$(RESET)"
 
 exec:

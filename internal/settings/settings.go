@@ -76,8 +76,20 @@ func Init(flags flags.Flags, logger hclog.Logger) (*Settings, error) {
 
 func GetConfigDir(dev bool) string {
 	if !dev {
-		home := GetHome()
-		return filepath.Join(home, ".config", APP_NAME)
+		systemDir := filepath.Join("/etc", APP_NAME)
+		userDir := filepath.Join(GetHome(), ".config", APP_NAME)
+
+		exist, err := HasDir(userDir, systemDir)
+		if err != nil {
+			log.Println(err)
+			return ""
+		}
+
+		if !exist {
+			log.Println("User config dir create")
+		}
+
+		return userDir
 	}
 
 	exe, _ := os.Executable()

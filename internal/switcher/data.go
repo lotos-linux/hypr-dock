@@ -123,7 +123,7 @@ func (s *Switcher) loadData() {
 }
 
 // clientsEqual compares two client slices for equality
-func clientsEqual(a, b []ipc.Client) bool {
+func ClientsEqual(a, b []ipc.Client) bool {
 	if len(a) != len(b) {
 		return false
 	}

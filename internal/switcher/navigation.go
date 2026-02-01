@@ -40,16 +40,16 @@ func (s *Switcher) cycle(direction int) {
 
 			if direction < 0 {
 				// Search backwards to find the start of this workspace block
-				for k := nextIdx; k >= 0; k-- {
-					if s.clients[k].Workspace.Id == s.clients[nextIdx].Workspace.Id {
-						// Found it, just need to know it exists or use it?
-						// We actually just want to set s.selected to the first index of this workspace.
-						// Which is stored in s.workspaceMap[s.clients[nextIdx].Workspace.Id][0]
-						break
-					} else {
-						break
-					}
-				}
+				// for k := nextIdx; k >= 0; k-- {
+				// 	if s.clients[k].Workspace.Id == s.clients[nextIdx].Workspace.Id {
+				// 		// Found it, just need to know it exists or use it?
+				// 		// We actually just want to set s.selected to the first index of this workspace.
+				// 		// Which is stored in s.workspaceMap[s.clients[nextIdx].Workspace.Id][0]
+				// 		break
+				// 	} else {
+				// 		break
+				// 	}
+				// }
 				// If we wrapped around, we might need to check from end?
 				// Actually, our list is: [WS_A_1, WS_A_2, WS_B_1, WS_B_2]
 				// If we are at WS_B_1 and go -1, we hit WS_A_2.

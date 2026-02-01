@@ -140,12 +140,11 @@ func (s *Switcher) capturePreviewAsync(
 		defer func() { <-sem }()
 
 		// Capture using shared app
-		var err error
 		// Force fresh connection for each capture to resolve issue with multiple windows
 		// if s.app != nil {
 		// 	err = stream.CaptureFrameWithApp(s.app)
 		// } else {
-		err = stream.CaptureFrame()
+		err := stream.CaptureFrame()
 		// }
 
 		if err == nil {
@@ -189,7 +188,7 @@ func (s *Switcher) capturePreviewAsync(
 }
 
 // updatePreviews refreshes all window previews
-func (s *Switcher) updatePreviews() {
+func (s *Switcher) UpdatePreviews() {
 	s.renderGen++ // Invalidate previous (though render skipped, but good practice)
 	currentGen := s.renderGen
 

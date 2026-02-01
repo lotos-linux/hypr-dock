@@ -1,9 +1,11 @@
 package settings
 
 import (
+	"fmt"
 	"hypr-dock/internal/pkg/conf"
 	"hypr-dock/internal/pkg/flags"
 	"hypr-dock/internal/pkg/pinned"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -73,14 +75,28 @@ func Init(flags flags.Flags, logger hclog.Logger) (*Settings, error) {
 }
 
 func GetConfigDir(dev bool) string {
-	if dev {
-		exe, _ := os.Executable()
-		exeDir := filepath.Dir(exe)
-		return filepath.Join(filepath.Dir(exeDir), "configs")
+	if !dev {
+		home := GetHome()
+		return filepath.Join(home, ".config", APP_NAME)
 	}
 
-	home := GetHome()
-	return filepath.Join(home, ".config", APP_NAME)
+	exe, _ := os.Executable()
+	exeDir := filepath.Dir(exe)
+	configs := filepath.Join(filepath.Dir(exeDir), "configs")
+	devDir := filepath.Join(configs, "dev")
+	def := filepath.Join(configs, "default")
+
+	exist, err := HasDir(devDir, def)
+	if err != nil {
+		log.Println(err)
+		return ""
+	}
+
+	if !exist {
+		log.Printf("Dev dir create")
+	}
+
+	return devDir
 }
 
 func expand(path string) string {
@@ -94,4 +110,54 @@ func expand(path string) string {
 func GetHome() string {
 	home, _ := os.UserHomeDir()
 	return home
+}
+
+func HasDir(dir string, sourceDir string) (bool, error) {
+	if _, err := os.Stat(dir); err == nil {
+		return true, nil
+	}
+
+	if _, err := os.Stat(sourceDir); err != nil {
+		return false, fmt.Errorf("source directory does not exist: %w", err)
+	}
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return false, fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	return false, filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(sourceDir, path)
+		if err != nil {
+			return err
+		}
+
+		destPath := filepath.Join(dir, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(destPath, 0755)
+		}
+
+		return copyFile(path, destPath)
+	})
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	return err
 }

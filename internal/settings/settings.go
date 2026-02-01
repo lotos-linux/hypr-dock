@@ -43,7 +43,7 @@ func Init(flags flags.Flags, logger hclog.Logger) (*Settings, error) {
 	configDir := getConfigDir(flags.DevMode)
 
 	// main config file
-	configPath := filepath.Join(configDir, APP_NAME, ".conf")
+	configPath := filepath.Join(configDir, APP_NAME+".conf")
 	if flags.Config != "~/.config/hypr-dock" {
 		configPath = expand(flags.Config)
 	}

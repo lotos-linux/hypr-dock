@@ -21,7 +21,7 @@ This will:
 rm -f /tmp/hypr-dock-timing.log
 
 # Run with timing enabled
-HYPR_DOCK_DEBUG_TIMING=1 hypr-dock --switcher
+HYPR_DOCK_DEBUG_TIMING=1 hypr-alttab
 
 # View the log
 cat /tmp/hypr-dock-timing.log
@@ -35,7 +35,7 @@ tail -f /tmp/hypr-dock-timing.log
 
 In another terminal:
 ```bash
-HYPR_DOCK_DEBUG_TIMING=1 hypr-dock switcher
+HYPR_DOCK_DEBUG_TIMING=1 hypr-alttab
 ```
 
 ## What Gets Logged

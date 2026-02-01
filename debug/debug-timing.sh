@@ -12,7 +12,7 @@ rm -f /tmp/hypr-dock-timing.log
 
 # Run with debug timing enabled
 # The timing output will appear in the terminal and in the log file
-HYPR_DOCK_DEBUG_TIMING=1 /usr/bin/hypr-dock --switcher
+HYPR_DOCK_DEBUG_TIMING=1 /usr/bin/hypr-alttab
 
 # Show final log
 echo ""

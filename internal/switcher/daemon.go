@@ -1,7 +1,6 @@
 package switcher
 
 import (
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"strconv"
@@ -14,11 +13,11 @@ import (
 
 // setupSingleton checks if another instance is running and sends signal to it
 // Returns true if this should be the daemon, false if signal was sent to existing daemon
-func setupSingleton(s *Switcher) bool {
+func setupSingleton() bool {
 	lockFile := "/tmp/hypr-dock-switcher.lock"
 
 	// Check if lock file exists
-	if data, err := ioutil.ReadFile(lockFile); err == nil {
+	if data, err := os.ReadFile(lockFile); err == nil {
 		pid, err := strconv.Atoi(string(data))
 		if err == nil {
 			// Check if process is still alive
@@ -38,7 +37,7 @@ func setupSingleton(s *Switcher) bool {
 
 	// Write current PID
 	pid := os.Getpid()
-	_ = ioutil.WriteFile(lockFile, []byte(strconv.Itoa(pid)), 0644)
+	_ = os.WriteFile(lockFile, []byte(strconv.Itoa(pid)), 0644)
 	debugLog("STARTUP: Daemon Started. PID=%d", pid)
 	return true
 }

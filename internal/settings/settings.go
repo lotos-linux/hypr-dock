@@ -40,7 +40,7 @@ func Init(flags flags.Flags, logger hclog.Logger) (*Settings, error) {
 	}
 
 	// main configs dir
-	configDir := getConfigDir(flags.DevMode)
+	configDir := GetConfigDir(flags.DevMode)
 
 	// main config file
 	configPath := filepath.Join(configDir, APP_NAME+".conf")
@@ -72,7 +72,7 @@ func Init(flags flags.Flags, logger hclog.Logger) (*Settings, error) {
 	}, nil
 }
 
-func getConfigDir(dev bool) string {
+func GetConfigDir(dev bool) string {
 	if dev {
 		exe, _ := os.Executable()
 		exeDir := filepath.Dir(exe)

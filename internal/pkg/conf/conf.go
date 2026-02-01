@@ -25,9 +25,9 @@ type Preview struct {
 	Mode       string `def:"none" valid:"none, static, live"`
 	FPS        int    `def:"30"`
 	BufferSize int    `def:"5" max:"20" min:"1"`
-	ShowDelay  int    `def:"600"`
-	HideDelay  int    `def:"300"`
-	MoveDelay  int    `def:"200"`
+	ShowDelay  int    `def:"500"`
+	HideDelay  int    `def:"350"`
+	MoveDelay  int    `def:"100"`
 }
 
 type PreviewStyle struct {

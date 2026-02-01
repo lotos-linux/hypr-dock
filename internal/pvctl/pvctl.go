@@ -107,7 +107,6 @@ func (pv *PV) show(item *item.Item) {
 
 	widget.OnReady(func(w, h int) {
 		pv.popup.SetWinCallBack(func(window *gtk.Window) error {
-			window.SetSizeRequest(-1, h+5)
 			return pv.popupWinSet(window)
 		})
 
@@ -116,6 +115,7 @@ func (pv *PV) show(item *item.Item) {
 			pv.popup.SetMonitor(orig.Monitor)
 		}
 
+		pv.popup.Set(widget)
 		err := pv.popup.Open(target.x, target.y, target.anchorX, target.anchorY)
 		if err != nil {
 			log.Println("Error: faild open preview popup:", err)
@@ -123,7 +123,6 @@ func (pv *PV) show(item *item.Item) {
 	})
 
 	pv.widget = widget
-	pv.popup.Set(widget)
 }
 
 func (pv *PV) change(item *item.Item) {
@@ -166,12 +165,17 @@ func (pv *PV) change(item *item.Item) {
 	})
 
 	widget.OnReady(func(w, h int) {
+		pv.popup.SetWinMoveCallBack(func(window *gtk.Window) error {
+			window.Resize(w, h+5)
+			return nil
+		})
+
 		target, _ := prepareCord(w, h, item, pv.settings)
+		pv.popup.Set(widget)
 		pv.popup.Move(target.x, target.y)
 	})
 
 	pv.widget = widget
-	pv.popup.Set(widget)
 }
 
 func (pv *PV) hide() {

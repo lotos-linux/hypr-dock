@@ -22,9 +22,12 @@ type PV struct {
 	hideTimer *timer.Timer
 	moveTimer *timer.Timer
 
-	className string
-	popup     *popup.Popup
-	settings  *settings.Settings
+	className    string
+	preClassName string
+
+	popup    *popup.Popup
+	widget   *pvwidget.Widget
+	settings *settings.Settings
 
 	onEnter func(w *gtk.Window, e *gdk.Event)
 	onLeave func(w *gtk.Window, e *gdk.Event)
@@ -33,7 +36,8 @@ type PV struct {
 
 func New(settings *settings.Settings) *PV {
 	return &PV{
-		className: "90348d332fvecs324csd4",
+		className:    "90348d332fvecs324csd4",
+		preClassName: "",
 
 		showTimer: timer.New(),
 		hideTimer: timer.New(),
@@ -118,10 +122,15 @@ func (pv *PV) show(item *item.Item) {
 		}
 	})
 
+	pv.widget = widget
 	pv.popup.Set(widget)
 }
 
 func (pv *PV) change(item *item.Item) {
+	if pv.widget != nil && pv.widget.GetClass() == pv.className {
+		return
+	}
+
 	if pv == nil {
 		fmt.Printf("Debug: pv is nil")
 		return
@@ -161,6 +170,7 @@ func (pv *PV) change(item *item.Item) {
 		pv.popup.Move(target.x, target.y)
 	})
 
+	pv.widget = widget
 	pv.popup.Set(widget)
 }
 
@@ -172,11 +182,14 @@ func (pv *PV) popupWinSet(w *gtk.Window) error {
 	w.Connect("enter-notify-event", func(w *gtk.Window, e *gdk.Event) {
 		pv.hideTimer.Stop()
 
+		if pv.moveTimer.IsRunning() {
+			pv.moveTimer.Stop()
+			pv.className = pv.preClassName
+		}
+
 		if pv.onEnter != nil {
 			pv.onEnter(w, e)
 		}
-
-		// ipc.DispatchEvent("hd>>pv-pointer-enter")
 	})
 	w.Connect("leave-notify-event", func(w *gtk.Window, e *gdk.Event) {
 		event := gdk.EventCrossingNewFromEvent(e)
@@ -190,8 +203,6 @@ func (pv *PV) popupWinSet(w *gtk.Window) error {
 		if pv.onLeave != nil {
 			pv.onLeave(w, e)
 		}
-
-		// ipc.DispatchEvent("hd>>pv-pointer-leave")
 	})
 	return nil
 }
@@ -251,6 +262,7 @@ func (pv *PV) HasClassChanged(className string) bool {
 }
 
 func (pv *PV) SetCurrentClass(className string) {
+	pv.preClassName = pv.className
 	pv.className = className
 }
 

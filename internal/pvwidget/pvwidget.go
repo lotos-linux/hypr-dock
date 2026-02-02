@@ -237,3 +237,7 @@ func (w *Widget) OnClick(handler func(*ipc.Client)) {
 func (w *Widget) OnEmpty(handler func()) {
 	w.onEmpty = handler
 }
+
+func (w *Widget) GetClass() string {
+	return w.item.ClassName
+}

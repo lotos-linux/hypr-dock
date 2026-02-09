@@ -50,7 +50,43 @@ func New(settings *settings.Settings) *PV {
 	}
 }
 
+func (pv *PV) SmartOpen(item *item.Item) {
+	if len(item.Windows) == 0 {
+		return
+	}
+
+	pv.hideTimer.Stop()
+
+	if pv.GetActive() {
+		pv.moveTimer.Stop()
+		pv.moveTimer.Run(pv.settings.Preview.MoveDelay, func() { pv.Change(item) })
+		return
+	}
+
+	if !pv.GetActive() {
+		pv.showTimer.Run(pv.settings.Preview.ShowDelay, func() { pv.Show(item) })
+	}
+}
+
+func (pv *PV) SmartHide(item *item.Item) {
+	if len(item.Windows) == 0 {
+		return
+	}
+
+	pv.showTimer.Stop()
+	if pv.GetActive() {
+		pv.hideTimer.Run(pv.settings.Preview.HideDelay, pv.Hide)
+	}
+}
+
 func (pv *PV) Show(item *item.Item) {
+	if pv.active {
+		return
+	}
+
+	pv.preClassName = pv.className
+	pv.className = item.ClassName
+
 	glib.IdleAdd(func() {
 		pv.show(item)
 	})
@@ -58,12 +94,19 @@ func (pv *PV) Show(item *item.Item) {
 }
 
 func (pv *PV) Change(item *item.Item) {
+	pv.preClassName = pv.className
+	pv.className = item.ClassName
+
 	glib.IdleAdd(func() {
 		pv.change(item)
 	})
 }
 
 func (pv *PV) Hide() {
+	if !pv.active {
+		return
+	}
+
 	glib.IdleAdd(func() {
 		pv.hide()
 	})
@@ -259,15 +302,6 @@ func (pv *PV) GetHideTimer() *timer.Timer {
 
 func (pv *PV) GetMoveTimer() *timer.Timer {
 	return pv.moveTimer
-}
-
-func (pv *PV) HasClassChanged(className string) bool {
-	return pv.className != className
-}
-
-func (pv *PV) SetCurrentClass(className string) {
-	pv.preClassName = pv.className
-	pv.className = className
 }
 
 type popupTarget struct {

@@ -23,11 +23,8 @@ func Dispatch(item *item.Item, appState *state.State) {
 }
 
 func previewControl(item *item.Item, ctrl *defaultcontrol.Control, appState *state.State) {
-	settings := appState.GetSettings()
 	pv := appState.GetPV()
 	showTimer := pv.GetShowTimer()
-	hideTimer := pv.GetHideTimer()
-	moveTimer := pv.GetMoveTimer()
 
 	// clickes
 	ctrl.ResetSingle(func() {
@@ -45,7 +42,6 @@ func previewControl(item *item.Item, ctrl *defaultcontrol.Control, appState *sta
 	ctrl.ResetMulti(func() {
 		if !pv.GetActive() {
 			pv.Show(item)
-			pv.SetCurrentClass(item.ClassName)
 		}
 	})
 
@@ -60,36 +56,11 @@ func previewControl(item *item.Item, ctrl *defaultcontrol.Control, appState *sta
 
 	// hover
 	item.Button.Connect("enter-notify-event", func() {
-		instances := len(item.Windows)
-		if instances == 0 {
-			return
-		}
-
-		hideTimer.Stop()
-
-		if pv.GetActive() && pv.HasClassChanged(item.ClassName) {
-			moveTimer.Stop()
-			moveTimer.Run(settings.Preview.MoveDelay, func() { pv.Change(item) })
-			pv.SetCurrentClass(item.ClassName)
-			return
-		}
-
-		if !pv.GetActive() {
-			showTimer.Run(settings.Preview.ShowDelay, func() { pv.Show(item) })
-			pv.SetCurrentClass(item.ClassName)
-		}
+		pv.SmartOpen(item)
 	})
 
 	item.Button.Connect("leave-notify-event", func() {
-		instances := len(item.Windows)
-		if instances == 0 {
-			return
-		}
-
-		showTimer.Stop()
-		if pv.GetActive() {
-			hideTimer.Run(settings.Preview.HideDelay, pv.Hide)
-		}
+		pv.SmartHide(item)
 	})
 
 	// send to host control signal for auto mode

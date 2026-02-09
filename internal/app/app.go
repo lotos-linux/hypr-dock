@@ -1,9 +1,7 @@
 package app
 
 import (
-	"errors"
-	"fmt"
-	"log"
+	"os"
 	"slices"
 
 	"github.com/gotk3/gotk3/gtk"
@@ -11,7 +9,6 @@ import (
 	"hypr-dock/internal/btnctl"
 	"hypr-dock/internal/hypr/hyprOpt"
 	"hypr-dock/internal/item"
-	"hypr-dock/internal/pkg/utils"
 	"hypr-dock/internal/state"
 	"hypr-dock/pkg/ipc"
 )
@@ -19,14 +16,15 @@ import (
 func BuildApp(appState *state.State) *gtk.Box {
 	settings := appState.GetSettings()
 	orientation := appState.GetLayerctl().GetOrientation()
+	log := appState.GetLogger()
 
 	app, err := gtk.BoxNew(orientation, 0)
 	if err != nil {
-		log.Println("BuildApp() | app | gtk.BoxNew()")
-		log.Fatal(err)
+		log.Error("Unable to create gtk box:", "package", "app", "err", err)
+		os.Exit(2)
 	}
 
-	addWindowMarginRule(app, appState)
+	initMargin(app, appState)
 	app.SetName("app")
 
 	itemsBox, _ := gtk.BoxNew(orientation, settings.Spacing)
@@ -78,10 +76,12 @@ func InitNewItemInIPC(ipcClient ipc.Client, appState *state.State) {
 }
 
 func InitNewItemInClass(className string, appState *state.State) {
+	log := appState.GetLogger()
+
 	list := appState.GetList()
 	item, err := item.New(className, appState.GetSettings())
 	if err != nil {
-		log.Println(err)
+		log.Error("Unable to creat app item", "err", err)
 		return
 	}
 
@@ -96,9 +96,8 @@ func InitNewItemInClass(className string, appState *state.State) {
 }
 
 func RemoveApp(address string, appState *state.State) {
-	item, _, err := searchByAddress(address, appState)
+	item, _, err := appState.GetList().SearchWindow(address)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
@@ -115,75 +114,115 @@ func RemoveApp(address string, appState *state.State) {
 	appState.GetWindow().ShowAll()
 }
 
-func searchByAddress(address string, appState *state.State) (*item.Item, *ipc.Client, error) {
-	for _, item := range appState.GetList().GetMap() {
-		client, exist := item.Windows[address]
-		if exist {
-			return item, client, nil
-		}
-	}
-
-	err := errors.New("Window not found: " + address)
-	return nil, nil, err
-}
-
 func ChangeWindowTitle(address string, title string, appState *state.State) {
-	_, client, err := searchByAddress(address, appState)
+	_, client, err := appState.GetList().SearchWindow(address)
 	if err != nil {
-		log.Println(err)
 		return
 	}
 
 	client.Title = title
 }
 
-func addWindowMarginRule(app *gtk.Box, appState *state.State) {
+func initMargin(app *gtk.Box, appState *state.State) {
+	log := appState.GetLogger()
+
 	settings := appState.GetSettings()
 	position := settings.Position
-	var marginProvider *gtk.CssProvider
+	defMargin := settings.Margin
 
-	switch settings.SystemGapUsed {
-	case true:
-		margin, err := hyprOpt.GetGap()
-		if err != nil {
-			log.Println(err, "\nSet margin in config")
-			applyWindowMarginCSS(app, position, settings.Margin)
+	if !settings.SystemGapUsed {
+		setMargin(app, position, defMargin)
+		return
+	}
+
+	margin, err := hyprOpt.GetGap()
+	if err != nil {
+		log.Error("Failed to get gaps, indent set from settings", "error", err)
+		setMargin(app, position, defMargin)
+	}
+
+	setMargin(app, position, margin...)
+
+	hyprOpt.GapChangeEvent(func(gaps []int) {
+		setMargin(app, position, gaps...)
+	})
+}
+
+func setMargin(app *gtk.Box, position string, margin ...int) {
+	if len(margin) == 1 {
+		switch position {
+		case "bottom":
+			app.SetMarginBottom(margin[0])
+		case "left":
+			app.SetMarginStart(margin[0])
+		case "right":
+			app.SetMarginEnd(margin[0])
+		case "top":
+			app.SetMarginTop(margin[0])
 		}
+	}
 
-		marginProvider = applyWindowMarginCSS(app, position, margin[0])
-
-		hyprOpt.GapChangeEvent(func(gap int) {
-			utils.RemoveStyleProvider(app, marginProvider)
-			marginProvider = applyWindowMarginCSS(app, position, gap)
-			log.Println("Window margins updated successfully: ", gap)
-		})
-	case false:
-		applyWindowMarginCSS(app, position, settings.Margin)
+	if len(margin) == 4 {
+		switch position {
+		case "bottom":
+			app.SetMarginBottom(margin[0])
+		case "left":
+			app.SetMarginStart(margin[1])
+		case "right":
+			app.SetMarginEnd(margin[2])
+		case "top":
+			app.SetMarginTop(margin[3])
+		}
 	}
 }
 
-func applyWindowMarginCSS(app *gtk.Box, position string, margin int) *gtk.CssProvider {
-	css := fmt.Sprintf("#app {margin-%s: %dpx;}", position, margin)
+// func addWindowMarginRule(app *gtk.Box, appState *state.State) {
+// 	settings := appState.GetSettings()
+// 	position := settings.Position
+// 	var marginProvider *gtk.CssProvider
 
-	marginProvider, err := gtk.CssProviderNew()
-	if err != nil {
-		log.Printf("Failed to create CSS provider: %v", err)
-		return nil
-	}
+// 	switch settings.SystemGapUsed {
+// 	case true:
+// 		margin, err := hyprOpt.GetGap()
+// 		if err != nil {
+// 			log.Println(err, "\nSet margin in config")
+// 			applyWindowMarginCSS(app, position, settings.Margin)
+// 		}
 
-	appStyleContext, err := app.GetStyleContext()
-	if err != nil {
-		log.Printf("Failed to get style context: %v", err)
-		return nil
-	}
+// 		marginProvider = applyWindowMarginCSS(app, position, margin[0])
 
-	appStyleContext.AddProvider(marginProvider, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+// 		hyprOpt.GapChangeEvent(func(gap int) {
+// 			utils.RemoveStyleProvider(app, marginProvider)
+// 			marginProvider = applyWindowMarginCSS(app, position, gap)
+// 			log.Println("Window margins updated successfully: ", gap)
+// 		})
+// 	case false:
+// 		applyWindowMarginCSS(app, position, settings.Margin)
+// 	}
+// }
 
-	err = marginProvider.LoadFromData(css)
-	if err != nil {
-		log.Printf("Failed to load CSS data: %v", err)
-		return nil
-	}
+// func applyWindowMarginCSS(app *gtk.Box, position string, margin int) *gtk.CssProvider {
+// 	css := fmt.Sprintf("#app {margin-%s: %dpx;}", position, margin)
 
-	return marginProvider
-}
+// 	marginProvider, err := gtk.CssProviderNew()
+// 	if err != nil {
+// 		log.Printf("Failed to create CSS provider: %v", err)
+// 		return nil
+// 	}
+
+// 	appStyleContext, err := app.GetStyleContext()
+// 	if err != nil {
+// 		log.Printf("Failed to get style context: %v", err)
+// 		return nil
+// 	}
+
+// 	appStyleContext.AddProvider(marginProvider, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+// 	err = marginProvider.LoadFromData(css)
+// 	if err != nil {
+// 		log.Printf("Failed to load CSS data: %v", err)
+// 		return nil
+// 	}
+
+// 	return marginProvider
+// }

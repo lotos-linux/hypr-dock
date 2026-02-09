@@ -56,8 +56,8 @@ func GetGap() ([]int, error) {
 	return outValues, nil
 }
 
-func GapChangeEvent(handler func(gap int)) {
-	var preGap int
+func GapChangeEvent(handler func(gap []int)) {
+	var preGaps []int
 	ipc.AddEventListener("configreloaded", func(e string) {
 		gaps, err := GetGap()
 		if err != nil {
@@ -65,11 +65,12 @@ func GapChangeEvent(handler func(gap int)) {
 			return
 		}
 
-		if gaps[0] == preGap {
-			return
+		for i, gap := range gaps {
+			if gap != preGaps[i] {
+				preGaps = gaps
+				handler(gaps)
+				return
+			}
 		}
-
-		preGap = gaps[0]
-		handler(gaps[0])
 	}, true)
 }

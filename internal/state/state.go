@@ -8,9 +8,12 @@ import (
 	"sync"
 
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/hashicorp/go-hclog"
 )
 
 type State struct {
+	logger hclog.Logger
+
 	settings *settings.Settings
 	window   *gtk.Window
 	layerctl *layering.Control
@@ -26,6 +29,20 @@ func New(settings *settings.Settings) *State {
 		list:     itemsctl.New(),
 		pv:       pvctl.New(settings),
 	}
+}
+
+func (s *State) SetLogger(logger hclog.Logger) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.logger = logger
+}
+
+func (s *State) GetLogger() hclog.Logger {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.logger
 }
 
 func (s *State) SetLayerctl(ctl *layering.Control) {

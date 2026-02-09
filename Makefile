@@ -13,6 +13,11 @@ RESET := \033[0m
 GREEN := \033[32m
 YELLOW := \033[33m
 
+LOG_LEVEL ?= trace
+
+get:
+	go mod tidy
+
 warn:
 	@if [ ! -f "$(PROJECT_BIN_DIR)/$(EXECUTABLE_DOCK)" ]; then \
 		echo -e "$(YELLOW)The first build may take an extremely long time due to linking with gtk3...$(RESET)"; \
@@ -32,42 +37,26 @@ build-alttab:
 	$(MAKE) warn
 	go build -v -o $(PROJECT_BIN_DIR)/$(EXECUTABLE_ALTTAB) $(CMD_ALTTAB)
 
-
-update-dock:
-	-sudo killall $(EXECUTABLE_DOCK) 2>/dev/null || true
-	sudo cp $(PROJECT_BIN_DIR)/$(EXECUTABLE_DOCK) /usr/bin/
-	@echo -e "$(GREEN)hypr-dock update.$(RESET)"
-
-update-alttab:
-	-sudo killall $(EXECUTABLE_DOCK) 2>/dev/null || true
-	sudo cp $(PROJECT_BIN_DIR)/$(EXECUTABLE_DOCK) /usr/bin/
-	@echo -e "$(GREEN)hypr-alttab update.$(RESET)"
-
 install: install-all
 
 install-dock:
 	-sudo killall $(EXECUTABLE_DOCK) 2>/dev/null || true
 	sudo cp $(PROJECT_BIN_DIR)/$(EXECUTABLE_DOCK) /usr/bin/
-	sudo mkdir -p $(SYSTEM_CONFIG_DIR)
-	sudo cp -r $(PROJECT_CONFIG_DIR)/* $(SYSTEM_CONFIG_DIR)/
-	@echo -e "$(GREEN)hypr-dock installed. Configs copied to $(SYSTEM_CONFIG_DIR)$(RESET)"
+	@echo -e "$(GREEN)hypr-dock installed$(RESET)"
 
 install-alttab:
 	-sudo killall $(EXECUTABLE_ALTTAB) 2>/dev/null || true
 	sudo cp $(PROJECT_BIN_DIR)/$(EXECUTABLE_ALTTAB) /usr/bin/
-	sudo mkdir -p $(SYSTEM_CONFIG_DIR)
-	# Only copy configs if they don't exist to avoid overwriting user changes
-	sudo cp -n $(PROJECT_CONFIG_DIR)/* $(SYSTEM_CONFIG_DIR)/ || true
-	@echo -e "$(GREEN)hypr-alttab installed. Configs copied to $(SYSTEM_CONFIG_DIR)$(RESET)"
+	@echo -e "$(GREEN)hypr-alttab installed$(RESET)"
+
+update-config:
+	sudo -rf $(PROJECT_CONFIG_DIR)/. $(SYSTEM_CONFIG_DIR)/
+	@echo -e "$(GREEN)Configs copied to $(SYSTEM_CONFIG_DIR)$(RESET)
 
 install-all:
-	-sudo killall $(EXECUTABLE_DOCK) 2>/dev/null || true
-	-sudo killall $(EXECUTABLE_ALTTAB) 2>/dev/null || true
-	sudo cp $(PROJECT_BIN_DIR)/$(EXECUTABLE_DOCK) /usr/bin/
-	sudo cp $(PROJECT_BIN_DIR)/$(EXECUTABLE_ALTTAB) /usr/bin/
-	sudo mkdir -p $(SYSTEM_CONFIG_DIR)
-	sudo cp -r $(PROJECT_CONFIG_DIR)/* $(SYSTEM_CONFIG_DIR)/
-	@echo -e "$(GREEN)Both hypr-dock and hypr-alttab installed. Configs copied to $(SYSTEM_CONFIG_DIR)$(RESET)"
+	$(MAKE) install-dock
+	$(MAKE) install-alttab
+	$(MAKE) update-config
 
 uninstall:
 	sudo rm -f /usr/bin/$(EXECUTABLE_DOCK)
@@ -76,4 +65,4 @@ uninstall:
 	@echo -e "$(GREEN)Uninstalled.$(RESET)"
 
 exec:
-	./bin/hypr-dock -dev
+	./bin/hypr-dock -dev -log-level $(LOG_LEVEL)

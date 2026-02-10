@@ -9,6 +9,7 @@ import (
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/hashicorp/go-hclog"
 )
 
 type Control struct {
@@ -26,9 +27,11 @@ type Control struct {
 	edge        layershell.LayerShellEdgeFlags
 
 	layers map[string]layershell.LayerShellLayerFlags
+
+	log hclog.Logger
 }
 
-func New(window *gtk.Window, settings *settings.Settings) *Control {
+func New(window *gtk.Window, settings *settings.Settings, log hclog.Logger) *Control {
 	layers := map[string]layershell.LayerShellLayerFlags{
 		"background": layershell.LAYER_SHELL_LAYER_BACKGROUND,
 		"bottom":     layershell.LAYER_SHELL_LAYER_BOTTOM,
@@ -42,6 +45,8 @@ func New(window *gtk.Window, settings *settings.Settings) *Control {
 
 		layers:    layers,
 		hideTimer: timer.New(),
+
+		log: log,
 	}
 }
 
@@ -53,8 +58,8 @@ func (c *Control) Init() {
 	c.SetLayer()
 }
 
-func NewInit(window *gtk.Window, settings *settings.Settings) *Control {
-	ctrl := New(window, settings)
+func NewInit(window *gtk.Window, settings *settings.Settings, log hclog.Logger) *Control {
+	ctrl := New(window, settings, log)
 	ctrl.Init()
 	return ctrl
 }
@@ -101,7 +106,7 @@ func (c *Control) SetPosition() {
 func (c *Control) smart() {
 	layershell.SetLayer(c.window, c.layers["bottom"])
 
-	c.da = detectzone.New(c.window, c.settings)
+	c.da = detectzone.New(c.window, c.settings, c.log)
 	c.da.OnEnter(func() {
 		c.SendFocus()
 	})

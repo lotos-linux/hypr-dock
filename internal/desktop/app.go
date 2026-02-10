@@ -1,8 +1,8 @@
 package desktop
 
 import (
+	"fmt"
 	"hypr-dock/pkg/ini"
-	"log"
 	"strings"
 )
 
@@ -22,7 +22,7 @@ type Action struct {
 	icon string
 }
 
-func New(className string) *App {
+func New(className string) (*App, error) {
 	errData := &App{
 		name:         map[string]string{"": className},
 		comment:      map[string]string{"": ""},
@@ -33,15 +33,16 @@ func New(className string) *App {
 		raw:          make(map[string]map[string]string),
 	}
 
-	raw, err := ini.GetMap(SearchDesktopFile(className), "Desktop Entry")
+	file := SearchDesktopFile(className)
+
+	raw, err := ini.GetMap(file, "Desktop Entry")
 	if err != nil {
-		log.Println(err)
-		return errData
+		return errData, err
 	}
 
 	general, exist := raw["Desktop Entry"]
 	if !exist {
-		return errData
+		return errData, fmt.Errorf("section \"%v\" not found in %s", "Desktop Entry", file)
 	}
 
 	name, ok := GetAllLocales(general, "Name")
@@ -77,7 +78,7 @@ func New(className string) *App {
 		singleWindow: singleWindow,
 		actions:      actions,
 		raw:          raw,
-	}
+	}, nil
 }
 
 func GetLocalizedValue(values map[string]string, lang string) string {
@@ -148,22 +149,21 @@ func (a *App) GetComment(lang ...string) string {
 	return GetLocalizedValue(a.comment, lang[0])
 }
 
-func (a *App) Run() {
-	run(a.exec)
+func (a *App) Run() error {
+	return run(a.exec)
 }
 
-func (a *Action) Run() {
-	run(a.exec)
+func (a *Action) Run() error {
+	return run(a.exec)
 }
 
-func run(cmd string) {
+func run(cmd string) error {
 	clean, err := CleanExec(cmd)
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
-	Launch(clean)
+	return Launch(clean)
 }
 
 func (a *Action) GetAllName() map[string]string {

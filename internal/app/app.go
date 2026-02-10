@@ -79,7 +79,7 @@ func InitNewItemInClass(className string, appState *state.State) {
 	log := appState.GetLogger()
 
 	list := appState.GetList()
-	item, err := item.New(className, appState.GetSettings())
+	item, err := item.New(className, appState.GetSettings(), appState.GetLogger())
 	if err != nil {
 		log.Error("Unable to creat app item", "err", err)
 		return

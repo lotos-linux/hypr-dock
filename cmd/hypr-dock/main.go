@@ -48,8 +48,7 @@ func main() {
 
 	gtk.Init(nil)
 
-	appState := state.New(settings)
-	appState.SetLogger(logger)
+	appState := state.New(settings, logger)
 
 	window, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {
@@ -60,7 +59,7 @@ func main() {
 
 	window.SetTitle("hypr-dock")
 
-	layerctl := layering.NewInit(window, settings)
+	layerctl := layering.NewInit(window, settings, logger)
 	appState.SetLayerctl(layerctl)
 
 	err = utils.AddCssProvider(settings.ThemeStyle)

@@ -6,7 +6,7 @@ import (
 	"hypr-dock/internal/pkg/flags"
 	"hypr-dock/internal/pkg/pinned"
 	"io"
-	"log"
+
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,7 +28,7 @@ type Settings struct {
 	PinnedApps []string
 }
 
-func Init(flags flags.Flags, logger hclog.Logger) (*Settings, error) {
+func Init(flags flags.Flags, log hclog.Logger) (*Settings, error) {
 	var err error
 
 	// get local app dir
@@ -38,11 +38,12 @@ func Init(flags flags.Flags, logger hclog.Logger) (*Settings, error) {
 	pinnedPath := filepath.Join(localDir, "pinned")
 	pinnedApps, err := pinned.Open(pinnedPath)
 	if err != nil {
-		log.Fatal(err)
+		log.Error("Failed to create/write pinned list", "file", pinnedPath, "error", err)
 	}
 
 	// main configs dir
-	configDir := GetConfigDir(flags.DevMode)
+	configDir, isCreate, err := GetConfigDir(flags.DevMode)
+	log.Debug("Config dir init", "path", configDir, "created", isCreate, "error", err)
 
 	// main config file
 	configPath := filepath.Join(configDir, APP_NAME+".conf")
@@ -54,9 +55,9 @@ func Init(flags flags.Flags, logger hclog.Logger) (*Settings, error) {
 	themesDir := filepath.Join(configDir, "themes")
 
 	// read main config and current theme config
-	config, err := conf.New(configPath, themesDir, logger)
+	config, err := conf.New(configPath, themesDir, log)
 	if err != nil {
-		log.Fatal(err)
+		log.Error("Confog faild", "error", err)
 	}
 
 	// theme style file
@@ -74,22 +75,17 @@ func Init(flags flags.Flags, logger hclog.Logger) (*Settings, error) {
 	}, nil
 }
 
-func GetConfigDir(dev bool) string {
+func GetConfigDir(dev bool) (string, bool, error) {
 	if !dev {
 		systemDir := filepath.Join("/etc", APP_NAME)
 		userDir := filepath.Join(GetHome(), ".config", APP_NAME)
 
 		exist, err := HasDir(userDir, systemDir)
 		if err != nil {
-			log.Println(err)
-			return ""
+			return "", false, err
 		}
 
-		if !exist {
-			log.Println("User config dir create")
-		}
-
-		return userDir
+		return userDir, exist, nil
 	}
 
 	exe, _ := os.Executable()
@@ -100,15 +96,10 @@ func GetConfigDir(dev bool) string {
 
 	exist, err := HasDir(devDir, def)
 	if err != nil {
-		log.Println(err)
-		return ""
+		return "", false, err
 	}
 
-	if !exist {
-		log.Printf("Dev dir create")
-	}
-
-	return devDir
+	return devDir, exist, nil
 }
 
 func expand(path string) string {

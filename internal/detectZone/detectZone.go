@@ -2,35 +2,39 @@ package detectzone
 
 import (
 	"hypr-dock/internal/settings"
-	"log"
 
 	"github.com/dlasky/gotk3-layershell/layershell"
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/hashicorp/go-hclog"
 )
 
 type DetectArea struct {
 	onEnter func()
 	onLeave func()
 
+	log hclog.Logger
+
 	*gtk.Window
 }
 
-func New(mainWindow *gtk.Window, settings *settings.Settings) *DetectArea {
+func New(mainWindow *gtk.Window, settings *settings.Settings, log hclog.Logger) *DetectArea {
 	detectWindow, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {
-		log.Fatal("InitDetectArea(), gtk.WindowNew() | ", err)
+		log.Error("Unable to create gtk window", "pakage", "detectZone", "error", err)
 	}
 
 	da := &DetectArea{
 		Window: detectWindow,
 		onEnter: func() {
-			log.Printf("Detect enter")
+			log.Debug("Detect enter")
 		},
 		onLeave: func() {
-			log.Printf("Detect leave")
+			log.Debug("Detect leave")
 		},
 	}
+
+	da.log = log
 
 	da.SetName("detect")
 	da.SetSizeRequest(-1, 1)

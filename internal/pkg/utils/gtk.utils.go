@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"log"
+	"fmt"
 	"math"
 	"strings"
 
@@ -29,7 +29,6 @@ func CreatePixbuf(source string, size int) (*gdk.Pixbuf, error) {
 	if strings.Contains(source, "/") {
 		pixbuf, err := gdk.PixbufNewFromFileAtSize(source, size, size)
 		if err != nil {
-			log.Println(err)
 			return CreatePixbuf("image-missing", size)
 		}
 		return pixbuf, nil
@@ -38,13 +37,11 @@ func CreatePixbuf(source string, size int) (*gdk.Pixbuf, error) {
 	// Create image in icon name
 	iconTheme, err := gtk.IconThemeGetDefault()
 	if err != nil {
-		log.Println("Unable to icon theme:", err)
-		return CreatePixbuf("image-missing", size)
+		return nil, fmt.Errorf("failed to get default gtk icon theme: %v", err)
 	}
 
 	pixbuf, err := iconTheme.LoadIcon(source, size, gtk.ICON_LOOKUP_FORCE_SIZE)
 	if err != nil {
-		// log.Println(source, err) // Reduce noise?
 		return CreatePixbuf("image-missing", size)
 	}
 
@@ -75,18 +72,15 @@ func AddStyle(widget gtk.IWidget, style string) (*gtk.CssProvider, error) {
 func AddCssProvider(cssFile string) error {
 	cssProvider, err := gtk.CssProviderNew()
 	if err != nil {
-		log.Printf("Failed to create CSS provider: %v", err)
 		return errors.Wrap(err, "failed to create CSS provider")
 	}
 
 	if err := cssProvider.LoadFromPath(cssFile); err != nil {
-		log.Printf("Failed to load CSS from %q: %v", cssFile, err)
 		return errors.Wrapf(err, "failed to load CSS from %q", cssFile)
 	}
 
 	screen, err := gdk.ScreenGetDefault()
 	if err != nil {
-		log.Printf("Failed to get default screen: %v", err)
 		return errors.Wrap(err, "failed to get default screen")
 	}
 
@@ -98,19 +92,18 @@ func AddCssProvider(cssFile string) error {
 	return nil
 }
 
-func RemoveStyleProvider(widget *gtk.Box, provider *gtk.CssProvider) {
+func RemoveStyleProvider(widget *gtk.Box, provider *gtk.CssProvider) error {
 	if provider == nil {
-		log.Println("provider is nil")
-		return
+		return errors.New("provider is nil")
 	}
 
 	styleContext, err := widget.GetStyleContext()
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	styleContext.RemoveProvider(provider)
+	return nil
 }
 
 func GetFirstAvailableImage(sources []string, fallback ...string) string {
@@ -137,11 +130,10 @@ func GetFirstAvailableImage(sources []string, fallback ...string) string {
 	return fallbackImg
 }
 
-func SetCursorPointer(v *gtk.Widget) {
+func SetCursorPointer(v *gtk.Widget) error {
 	display, err := gdk.DisplayGetDefault()
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	pointer, _ := gdk.CursorNewFromName(display, "pointer")
@@ -162,6 +154,8 @@ func SetCursorPointer(v *gtk.Widget) {
 			win.SetCursor(arrow)
 		}
 	})
+
+	return nil
 }
 
 func SetAutoHover(v *gtk.Widget, context *gtk.StyleContext) {

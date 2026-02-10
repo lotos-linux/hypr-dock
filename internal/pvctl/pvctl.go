@@ -8,11 +8,15 @@ import (
 	"hypr-dock/internal/pvwidget"
 	"hypr-dock/internal/settings"
 	"hypr-dock/pkg/ipc"
-	"log"
+
+	// "log"
+
+	// "log"
 
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/hashicorp/go-hclog"
 )
 
 type PV struct {
@@ -32,9 +36,11 @@ type PV struct {
 	onEnter func(w *gtk.Window, e *gdk.Event)
 	onLeave func(w *gtk.Window, e *gdk.Event)
 	onEmpty func()
+
+	log hclog.Logger
 }
 
-func New(settings *settings.Settings) *PV {
+func New(settings *settings.Settings, log hclog.Logger) *PV {
 	return &PV{
 		className:    "90348d332fvecs324csd4",
 		preClassName: "",
@@ -43,10 +49,12 @@ func New(settings *settings.Settings) *PV {
 		hideTimer: timer.New(),
 		moveTimer: timer.New(),
 
-		onEmpty: func() { log.Printf("Debug: all window closed") },
+		onEmpty: func() { log.Debug("all window closed") },
 
 		popup:    popup.New(),
 		settings: settings,
+
+		log: log,
 	}
 }
 
@@ -125,9 +133,9 @@ func (pv *PV) show(item *item.Item) {
 	}
 
 	// widget settings
-	widget, err := pvwidget.New(item, pv.settings)
+	widget, err := pvwidget.New(item, pv.settings, pv.log)
 	if err != nil {
-		log.Println(err)
+		pv.log.Error("Unable to create preview widget", "error", err)
 		return
 	}
 
@@ -136,7 +144,7 @@ func (pv *PV) show(item *item.Item) {
 	})
 
 	widget.OnClick(func(c *ipc.Client) {
-		log.Printf("Debug: %s window focused (%s)", c.Title, c.Address)
+		pv.log.Debug("Window focused", "window-title", c.Title, "window-address", c.Address)
 
 		pv.showTimer.Stop()
 		pv.Hide()
@@ -153,7 +161,7 @@ func (pv *PV) show(item *item.Item) {
 			return pv.popupWinSet(window)
 		})
 
-		target, orig := prepareCord(w, h, item, pv.settings)
+		target, orig := pv.prepareCord(w, h, item)
 		if orig.Monitor != nil {
 			pv.popup.SetMonitor(orig.Monitor)
 		}
@@ -161,7 +169,7 @@ func (pv *PV) show(item *item.Item) {
 		pv.popup.Set(widget)
 		err := pv.popup.Open(target.x, target.y, target.anchorX, target.anchorY)
 		if err != nil {
-			log.Println("Error: faild open preview popup:", err)
+			pv.log.Error("Failed to open preview popup", "error", err)
 		}
 	})
 
@@ -184,9 +192,9 @@ func (pv *PV) change(item *item.Item) {
 	}
 
 	// widget recreate
-	widget, err := pvwidget.New(item, pv.settings)
+	widget, err := pvwidget.New(item, pv.settings, pv.log)
 	if err != nil {
-		log.Println(err)
+		pv.log.Error("Unable to create preview widget", "error", err)
 		return
 	}
 
@@ -195,7 +203,7 @@ func (pv *PV) change(item *item.Item) {
 	})
 
 	widget.OnClick(func(c *ipc.Client) {
-		log.Printf("Debug: %s window focused (%s)", c.Title, c.Address)
+		pv.log.Debug("Window focused", "window-title", c.Title, "window-address", c.Address)
 
 		pv.showTimer.Stop()
 		pv.Hide()
@@ -213,7 +221,7 @@ func (pv *PV) change(item *item.Item) {
 			return nil
 		})
 
-		target, _ := prepareCord(w, h, item, pv.settings)
+		target, _ := pv.prepareCord(w, h, item)
 		pv.popup.Set(widget)
 		pv.popup.Move(target.x, target.y)
 	})
@@ -261,7 +269,7 @@ func (pv *PV) resize(item *item.Item, w, h int) {
 		// get item buttom cord
 		cord, err := item.GetCord()
 		if err != nil {
-			log.Println(err)
+			pv.log.Error("Failed to get item button cords", "error", err)
 		}
 
 		// move
@@ -309,16 +317,16 @@ type popupTarget struct {
 	anchorX, anchorY string
 }
 
-func prepareCord(w, h int, item *item.Item, settings *settings.Settings) (target popupTarget, orig *item.Position) {
+func (pv *PV) prepareCord(w, h int, item *item.Item) (target popupTarget, orig *item.Position) {
 	orig, err := item.GetCord()
 	if err != nil {
-		log.Println(err)
+		pv.log.Error("Failed to get item button cords", "error", err)
 	}
 
 	target = popupTarget{}
 
 	// Anchor
-	switch settings.Position {
+	switch pv.settings.Position {
 	case "bottom":
 		target.anchorX = "left"
 		target.anchorY = "bottom"
@@ -333,7 +341,7 @@ func prepareCord(w, h int, item *item.Item, settings *settings.Settings) (target
 	}
 
 	// Popup center
-	switch settings.Position {
+	switch pv.settings.Position {
 	case "bottom", "top":
 		target.x = orig.CX - w/2
 		target.y = orig.CY

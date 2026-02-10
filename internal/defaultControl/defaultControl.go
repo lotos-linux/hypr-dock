@@ -5,15 +5,16 @@ import (
 	"hypr-dock/internal/pkg/utils"
 	"hypr-dock/internal/state"
 	"hypr-dock/pkg/ipc"
-	"log"
 
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/hashicorp/go-hclog"
 )
 
 type Control struct {
 	item     *item.Item
 	appState *state.State
+	log      hclog.Logger
 
 	zeroHandler   func()
 	singleHandler func()
@@ -24,6 +25,7 @@ type Control struct {
 
 func New(item *item.Item, appState *state.State) *Control {
 	settings := appState.GetSettings()
+	log := appState.GetLogger()
 
 	zeroHandler := func() {
 		item.App.Run()
@@ -39,13 +41,13 @@ func New(item *item.Item, appState *state.State) *Control {
 	multiHandler := func() {
 		menu, err := item.WindowsMenu()
 		if err != nil {
-			log.Println(err)
+			log.Error("Unable to create windows menu", "error", err)
 			return
 		}
 
 		win, zone, err := getActivateZone(item.Button, settings.ContextPos, settings.Position)
 		if err != nil {
-			log.Println(err)
+			log.Error("Failed to get activate zone", "error", err)
 			return
 		}
 
@@ -60,6 +62,7 @@ func New(item *item.Item, appState *state.State) *Control {
 	return &Control{
 		item:     item,
 		appState: appState,
+		log:      log,
 
 		zeroHandler:   zeroHandler,
 		singleHandler: singleHandler,
@@ -111,13 +114,13 @@ func (c *Control) connectContextMenu() {
 		if event.Button() == 3 {
 			menu, err := item.ContextMenu()
 			if err != nil {
-				log.Println(err)
+				c.log.Error("Unable to create context menu", "error", err)
 				return
 			}
 
 			win, zone, err := getActivateZone(item.Button, settings.ContextPos, settings.Position)
 			if err != nil {
-				log.Println(err)
+				c.log.Error("Failed to get activate zone", "error", err)
 				return
 			}
 

@@ -23,11 +23,12 @@ type State struct {
 	mu       sync.Mutex
 }
 
-func New(settings *settings.Settings) *State {
+func New(settings *settings.Settings, logger hclog.Logger) *State {
 	return &State{
 		settings: settings,
 		list:     itemsctl.New(),
-		pv:       pvctl.New(settings),
+		pv:       pvctl.New(settings, logger),
+		logger:   logger,
 	}
 }
 

@@ -3,10 +3,10 @@ package item
 import (
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/gotk3/gotk3/gtk"
 	"github.com/gotk3/gotk3/pango"
+	"github.com/hashicorp/go-hclog"
 
 	"hypr-dock/internal/desktop"
 	"hypr-dock/internal/pkg/utils"
@@ -16,12 +16,10 @@ import (
 func (i *Item) WindowsMenu() (*gtk.Menu, error) {
 	menu, err := gtk.MenuNew()
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
 
-	desktopData := desktop.New(i.ClassName)
-
-	AddWindowsItemToMenu(menu, i.Windows, desktopData)
+	AddWindowsItemToMenu(menu, i.Windows, i.App, i.log)
 
 	menu.SetName("windows-menu")
 	menu.ShowAll()
@@ -32,20 +30,20 @@ func (i *Item) WindowsMenu() (*gtk.Menu, error) {
 func (i *Item) ContextMenu() (*gtk.Menu, error) {
 	menu, err := gtk.MenuNew()
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
 
 	app := i.App
 	actions := app.GetActions()
 
-	AddWindowsItemToMenu(menu, i.Windows, app)
+	AddWindowsItemToMenu(menu, i.Windows, app, i.log)
 
 	if len(i.Windows) != 0 {
 		separator, err := gtk.SeparatorMenuItemNew()
 		if err == nil {
 			menu.Append(separator)
 		} else {
-			log.Println(err)
+			i.log.Error("Unable to create gtk separator", "error", err)
 		}
 	}
 
@@ -67,7 +65,7 @@ func (i *Item) ContextMenu() (*gtk.Menu, error) {
 			if err == nil {
 				menu.Append(actionMenuItem)
 			} else {
-				log.Println(err)
+				i.log.Error("Unable to create context item", "error", err)
 			}
 		}
 
@@ -75,7 +73,7 @@ func (i *Item) ContextMenu() (*gtk.Menu, error) {
 		if err == nil {
 			menu.Append(separator)
 		} else {
-			log.Println(err)
+			i.log.Error("Unable to create gtk separator", "error", err)
 		}
 	}
 
@@ -83,14 +81,14 @@ func (i *Item) ContextMenu() (*gtk.Menu, error) {
 	if err == nil {
 		menu.Append(launchMenuItem)
 	} else {
-		log.Println(err)
+		i.log.Error("Unable to create launch menu item", "error", err)
 	}
 
 	pinMenuItem, err := BuildPinMenuItem(i)
 	if err == nil {
 		menu.Append(pinMenuItem)
 	} else {
-		log.Println(err)
+		i.log.Error("Unable to create pin menu item", "error", err)
 	}
 
 	if len(i.Windows) == 1 {
@@ -102,7 +100,7 @@ func (i *Item) ContextMenu() (*gtk.Menu, error) {
 			if err == nil {
 				menu.Append(closeMenuItem)
 			} else {
-				log.Println(err)
+				i.log.Error("Unable to create close menu item", "error", err)
 			}
 		}
 	}
@@ -113,14 +111,14 @@ func (i *Item) ContextMenu() (*gtk.Menu, error) {
 	return menu, nil
 }
 
-func AddWindowsItemToMenu(menu *gtk.Menu, windows map[string]*ipc.Client, app *desktop.App) {
+func AddWindowsItemToMenu(menu *gtk.Menu, windows map[string]*ipc.Client, app *desktop.App, log hclog.Logger) {
 	for _, window := range windows {
 		menuItem, err := BuildContextItem(window.Title, func() {
 			go ipc.Hyprctl("dispatch focuswindow address:" + window.Address)
 		}, app.GetIcon())
 
 		if err != nil {
-			log.Println(err)
+			log.Error("Unable to create launch menu item", "error", err)
 			continue
 		}
 

@@ -7,13 +7,14 @@ import (
 	"hypr-dock/internal/pkg/utils"
 	"hypr-dock/internal/settings"
 	"hypr-dock/pkg/ipc"
-	"log"
+
 	"sync"
 
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 	"github.com/gotk3/gotk3/pango"
+	"github.com/hashicorp/go-hclog"
 )
 
 type Widget struct {
@@ -31,10 +32,12 @@ type Widget struct {
 	onClick  func(*ipc.Client)
 	onEmpty  func()
 
+	log hclog.Logger
+
 	*gtk.Box
 }
 
-func New(item *item.Item, settings *settings.Settings) (*Widget, error) {
+func New(item *item.Item, settings *settings.Settings, log hclog.Logger) (*Widget, error) {
 	wrapper, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, settings.ContextPos)
 	if err != nil {
 		return nil, err
@@ -45,20 +48,27 @@ func New(item *item.Item, settings *settings.Settings) (*Widget, error) {
 		Box:      wrapper,
 		settings: settings,
 		item:     item,
-		onReady:  func(w, h int) { log.Printf("PV Widget ready - w: %d; h: %d", w, h) },
-		onResize: func(w, h int) { log.Printf("PV Widget resize - w: %d; h: %d", w, h) },
+		onReady:  func(w, h int) { log.Trace("PV Widget ready", "width", w, "height", h) },
+		onResize: func(w, h int) { log.Trace("PV Widget resize", "width", w, "height", h) },
+
+		log: log,
 	}
 
-	log.Printf("DEBUG PV: Creating preview for %s, window count: %d", item.ClassName, len(item.Windows))
+	log.Debug("Creating preview",
+		"class_name", item.ClassName,
+		"window_count", len(item.Windows))
+
 	for addr, win := range item.Windows {
-		log.Printf("  Window: %s, Title: %s", addr, win.Title)
+		log.Debug("Window details",
+			"address", addr,
+			"title", win.Title)
 	}
 
 	successCount := 0
 	for _, window := range item.Windows {
 		err := widget.createWindowWidget(window)
 		if err != nil {
-			log.Println(err)
+			log.Error("Unable to create window widget", "error", err)
 			continue
 		}
 		successCount++
@@ -145,15 +155,15 @@ func (w *Widget) createWindowWidget(window *ipc.Client) error {
 	utils.SetCursorPointer(eventBox.ToWidget())
 
 	var stream *hysc.Stream
-	log.Printf("DEBUG: Attempting to create stream for window: %s (address: %s)", window.Title, window.Address)
+	w.log.Debug("Attempting to create stream window", "window", window.Title, "address", window.Address)
 
 	stream, err = hysc.StreamNew(window.Address)
 	if err != nil {
-		log.Printf("ERROR: Stream creation failed for %s: %v", window.Address, err)
+		w.log.Error("Stream creation failed", "address", window.Address, "error", err)
 		return err
 	}
 
-	log.Printf("DEBUG: Stream created successfully for %s", window.Address)
+	w.log.Debug("Stream created successfully", "address", window.Address)
 
 	stream.OnReady(func(s *hysc.Size) {
 		if s == nil {

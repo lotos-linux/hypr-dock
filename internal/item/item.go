@@ -1,16 +1,15 @@
 package item
 
 import (
-	"log"
 	"slices"
 
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/hashicorp/go-hclog"
 
 	"hypr-dock/internal/desktop"
 	layerinfo "hypr-dock/internal/layerInfo"
 
-	// "hypr-dock/internal/pkg/cfg"
 	"hypr-dock/internal/pkg/indicator"
 	"hypr-dock/internal/pkg/pinned"
 	"hypr-dock/internal/pkg/utils"
@@ -30,10 +29,15 @@ type Item struct {
 	Settings   *settings.Settings
 	List       map[string]*Item
 	PinnedList *[]string
+
+	log hclog.Logger
 }
 
-func New(className string, settings *settings.Settings) (*Item, error) {
-	app := desktop.New(className)
+func New(className string, settings *settings.Settings, log hclog.Logger) (*Item, error) {
+	app, err := desktop.New(className)
+	if err != nil {
+		log.Error("Error reading desktop file", "error", err)
+	}
 
 	orientation := gtk.ORIENTATION_VERTICAL
 	switch settings.Position {
@@ -50,7 +54,7 @@ func New(className string, settings *settings.Settings) (*Item, error) {
 	if err == nil {
 		appendInducator(item, indicatorImage, settings.Position)
 	} else {
-		log.Println(err)
+		log.Error("Unable to create windows indicator", "className", className, "error", err)
 	}
 
 	button, err := gtk.ButtonNew()
@@ -59,7 +63,7 @@ func New(className string, settings *settings.Settings) (*Item, error) {
 		if err == nil {
 			button.SetImage(image)
 		} else {
-			log.Println(err)
+			log.Error("Unable to create image", "error", err)
 		}
 
 		button.SetName(className)
@@ -70,7 +74,7 @@ func New(className string, settings *settings.Settings) (*Item, error) {
 
 		item.Add(button)
 	} else {
-		log.Println(err)
+		log.Error("Unable to create button", "error", err)
 	}
 
 	return &Item{
@@ -84,6 +88,8 @@ func New(className string, settings *settings.Settings) (*Item, error) {
 		Settings:   settings,
 		List:       nil,
 		PinnedList: nil,
+
+		log: log,
 	}, nil
 }
 
@@ -139,7 +145,7 @@ func (i *Item) TogglePin() {
 
 	if pin {
 		utils.RemoveFromSliceByValue(list, className)
-		log.Println("Remove:", className)
+		i.log.Trace("Remove", className)
 	}
 
 	if pin && !running {
@@ -148,17 +154,17 @@ func (i *Item) TogglePin() {
 
 	if !pin {
 		utils.AddToSlice(list, className)
-		log.Println("Add:", className)
+		i.log.Trace("Add", className)
 	}
 
 	file := i.Settings.PinnedPath
 	err := pinned.Save(file, *list)
 	if err != nil {
-		log.Println("Error:", err)
+		i.log.Error("Failed to save pinned list", "file", file, "error", err)
 		return
 	}
 
-	log.Printf("File %s saved successfully! (%s)", file, className)
+	i.log.Trace("File saved successfully!", file, className)
 }
 
 func (i *Item) Remove() {
@@ -194,14 +200,13 @@ func (i *Item) GetCord() (*Position, error) {
 	// get main layer info
 	dock, err := layerinfo.GetDock()
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
 
 	// Add monitor offset
 	monitors, err := ipc.GetMonitors()
 	if err != nil {
-		log.Println("Error getting monitors:", err)
+		i.log.Error("Error getting monitors:", "error", err)
 	} else {
 		for _, m := range monitors {
 			if m.Name == dock.Monitor {
@@ -221,8 +226,6 @@ func (i *Item) GetCord() (*Position, error) {
 		result.CX = result.X + margin + dock.W
 		result.CY = result.Y + dock.Y + result.RelY + result.H/2
 	}
-
-	log.Println(result.CY)
 
 	// get absolute coord
 	result.X = result.RelX + dock.X

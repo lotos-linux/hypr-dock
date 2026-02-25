@@ -209,7 +209,7 @@ func (Item *Item) GetCord(settings settings.Settings) (*Position, error) {
 	// get coord with centring
 	switch pos {
 	case "bottom", "top":
-		result.CX = result.X + dock.X + result.RelX + result.W/2
+		result.CX = dock.X + result.RelX + result.W/2
 		result.CY = result.Y + margin + dock.H
 	case "left", "right":
 		result.CX = result.X + margin + dock.W

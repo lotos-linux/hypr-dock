@@ -56,13 +56,11 @@ func Get(namespace string) (*Layer, error) {
 	return nil, fmt.Errorf("%s layer not found", namespace)
 }
 
-func GetMonitor() *ipc.Monitor {
-	dock, _ := GetDock()
-	monitors, _ := ipc.GetMonitors()
-	for _, monitor := range monitors {
-		if monitor.Name == dock.Monitor {
-			return &monitor
-		}
+func GetMonitor() (*ipc.Monitor, error) {
+	dock, err := GetDock()
+	if err != nil {
+		return nil, err
 	}
-	return nil
+
+	return ipc.SearchMonitorByName(dock.Monitor)
 }

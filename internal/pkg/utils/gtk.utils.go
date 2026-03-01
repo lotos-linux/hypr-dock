@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"fmt"
+	layerinfo "hypr-dock/internal/layerInfo"
 	"math"
 	"strings"
 
@@ -17,35 +17,58 @@ func CreateImageWidthScale(source string, size int, scaleFactor float64) (*gtk.I
 }
 
 func CreateImage(source string, size int) (*gtk.Image, error) {
-	pixbuf, err := CreatePixbuf(source, size)
+	image, err := CreateImage0(source, size)
+	if err == nil {
+		return image, nil
+	}
+	return CreateImage("image-missing", size)
+}
+
+func CreateImage0(source string, size int) (*gtk.Image, error) {
+	var scale float64 = 1.0
+	var pixbuf *gdk.Pixbuf
+	var err error
+
+	monitor, err := layerinfo.GetMonitor()
+	if err == nil {
+		scale = monitor.Scale
+	}
+
+	physicalSize := int(float64(size) * scale)
+
+	if strings.Contains(source, "/") {
+		// File name
+		pixbuf, err = gdk.PixbufNewFromFileAtSize(source, physicalSize, physicalSize)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Icon name
+		theme, err := gtk.IconThemeGetDefault()
+		if err != nil {
+			return nil, err
+		}
+
+		pixbuf, err = theme.LoadIcon(source, physicalSize, gtk.ICON_LOOKUP_FORCE_SIZE)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	surface, err := gdk.CairoSurfaceCreateFromPixbuf(pixbuf, 1, nil)
 	if err != nil {
 		return nil, err
 	}
-	return gtk.ImageNewFromPixbuf(pixbuf)
-}
 
-func CreatePixbuf(source string, size int) (*gdk.Pixbuf, error) {
-	// Create image in file
-	if strings.Contains(source, "/") {
-		pixbuf, err := gdk.PixbufNewFromFileAtSize(source, size, size)
-		if err != nil {
-			return CreatePixbuf("image-missing", size)
-		}
-		return pixbuf, nil
-	}
-
-	// Create image in icon name
-	iconTheme, err := gtk.IconThemeGetDefault()
+	image, err := gtk.ImageNew()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get default gtk icon theme: %v", err)
+		return nil, err
 	}
 
-	pixbuf, err := iconTheme.LoadIcon(source, size, gtk.ICON_LOOKUP_FORCE_SIZE)
-	if err != nil {
-		return CreatePixbuf("image-missing", size)
-	}
+	image.SetFromSurface(surface)
+	image.SetPixelSize(size)
 
-	return pixbuf, nil
+	return image, nil
 }
 
 func AddStyle(widget gtk.IWidget, style string) (*gtk.CssProvider, error) {

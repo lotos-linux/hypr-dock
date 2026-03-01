@@ -248,6 +248,8 @@ func (i *Item) GetCord() (*Position, error) {
 }
 
 func appendInducator(parent *gtk.Box, child *gtk.Image, pos string) {
+	child.SetName("indicator")
+
 	switch pos {
 	case "left", "right":
 		buf := child.GetPixbuf()

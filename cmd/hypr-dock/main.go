@@ -59,7 +59,7 @@ func main() {
 
 	window.SetTitle("hypr-dock")
 
-	layerctl := layering.NewInit(window, settings, logger)
+	layerctl := layering.NewInit(window, settings)
 	appState.SetLayerctl(layerctl)
 
 	err = utils.AddCssProvider(settings.ThemeStyle)

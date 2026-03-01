@@ -7,6 +7,7 @@ import (
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 	"github.com/gotk3/gotk3/pango"
+	"github.com/hashicorp/go-hclog"
 
 	"hypr-dock/internal/hysc"
 	"hypr-dock/internal/pkg/utils"
@@ -194,7 +195,7 @@ func (s *Switcher) createWindowWidget(idx int, mon ipc.Monitor, scale float64, f
 
 // setupScreenshot handles the screenshot logic extracted from previous monolith
 func (s *Switcher) setupScreenshot(c ipc.Client, w, h int, centerBox *gtk.Box, overlay *gtk.Overlay, icon *gtk.Image, iconName string, currentGen int, sem chan struct{}) {
-	_, err := hysc.StreamNew(c.Address)
+	_, err := hysc.StreamNew(c.Address, hclog.Default())
 	if err == nil {
 		fingerprint := getWindowFingerprint(c)
 		cached, exists := s.screenshotCache[fingerprint]

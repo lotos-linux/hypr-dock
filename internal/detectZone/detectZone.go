@@ -1,40 +1,30 @@
 package detectzone
 
 import (
+	"fmt"
 	"hypr-dock/internal/settings"
 
 	"github.com/dlasky/gotk3-layershell/layershell"
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
-	"github.com/hashicorp/go-hclog"
 )
 
 type DetectArea struct {
 	onEnter func()
 	onLeave func()
 
-	log hclog.Logger
-
 	*gtk.Window
 }
 
-func New(mainWindow *gtk.Window, settings *settings.Settings, log hclog.Logger) *DetectArea {
+func New(mainWindow *gtk.Window, settings *settings.Settings) (*DetectArea, error) {
 	detectWindow, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {
-		log.Error("Unable to create gtk window", "pakage", "detectZone", "error", err)
+		return nil, fmt.Errorf("unable to create gtk window in package \"detectZone\": %v", err)
 	}
 
 	da := &DetectArea{
 		Window: detectWindow,
-		onEnter: func() {
-			log.Debug("Detect enter")
-		},
-		onLeave: func() {
-			log.Debug("Detect leave")
-		},
 	}
-
-	da.log = log
 
 	da.SetName("detect")
 	da.SetSizeRequest(-1, 1)
@@ -49,16 +39,20 @@ func New(mainWindow *gtk.Window, settings *settings.Settings, log hclog.Logger) 
 
 	da.ShowAll()
 
-	return da
+	return da, nil
 }
 
 func (da *DetectArea) clickes() {
 	da.Connect("enter-notify-event", func(detectWindow *gtk.Window, e *gdk.Event) {
-		da.onEnter()
+		if da.onEnter != nil {
+			da.onEnter()
+		}
 	})
 
 	da.Connect("leave-notify-event", func(detectWindow *gtk.Window, e *gdk.Event) {
-		da.onLeave()
+		if da.onLeave != nil {
+			da.onLeave()
+		}
 	})
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/hashicorp/go-hclog"
 
 	"hypr-dock/internal/hysc"
 	"hypr-dock/internal/pkg/utils"
@@ -114,7 +115,7 @@ func (s *Switcher) capturePreviewAsync(
 	sem chan struct{},
 	fingerprint string, // Window fingerprint for caching
 ) {
-	stream, err := hysc.StreamNew(client.Address)
+	stream, err := hysc.StreamNew(client.Address, hclog.Default())
 	if err != nil {
 		return
 	}
@@ -218,7 +219,7 @@ func (s *Switcher) UpdatePreviews() {
 				return
 			}
 
-			stream, err := hysc.StreamNew(client.Address)
+			stream, err := hysc.StreamNew(client.Address, hclog.Default())
 			if err != nil {
 				return
 			}

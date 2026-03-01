@@ -12,12 +12,19 @@ import (
 )
 
 func Dispatch(item *item.Item, appState *state.State) {
-	ctrl := defaultcontrol.New(item, appState)
+	settings := appState.GetSettings()
+	ctrl := defaultcontrol.New(item, settings, appState.GetLogger())
 
+	// preview
 	if appState.GetSettings().Preview.Mode != "none" {
 		previewControl(item, ctrl, appState)
 		return
 	}
+
+	// default
+	ctrl.OnContextClose(func() {
+		appState.GetLayerctl().SendUnfocus()
+	})
 
 	ctrl.Init()
 }

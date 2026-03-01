@@ -157,7 +157,7 @@ func (w *Widget) createWindowWidget(window *ipc.Client) error {
 	var stream *hysc.Stream
 	w.log.Debug("Attempting to create stream window", "window", window.Title, "address", window.Address)
 
-	stream, err = hysc.StreamNew(window.Address)
+	stream, err = hysc.StreamNew(window.Address, w.log)
 	if err != nil {
 		w.log.Error("Stream creation failed", "address", window.Address, "error", err)
 		return err

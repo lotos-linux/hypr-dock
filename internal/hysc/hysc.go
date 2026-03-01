@@ -26,6 +26,8 @@ type Stream struct {
 	frameHandler func(*Size)
 	errorHandler func(error)
 
+	log hclog.Logger
+
 	*gtk.Image
 }
 
@@ -43,8 +45,8 @@ type Cord struct {
 	X, Y int
 }
 
-func StreamAndStart(address string, fps int) (*Stream, error) {
-	s, err := StreamNew(address)
+func StreamAndStart(address string, fps int, log hclog.Logger) (*Stream, error) {
+	s, err := StreamNew(address, log)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +59,7 @@ func StreamAndStart(address string, fps int) (*Stream, error) {
 	return s, nil
 }
 
-func StreamNew(address string) (*Stream, error) {
+func StreamNew(address string, log hclog.Logger) (*Stream, error) {
 	handle, err := getHandle(address)
 	if err != nil {
 		return nil, err
@@ -82,15 +84,17 @@ func StreamNew(address string) (*Stream, error) {
 		readyHandler: nil,
 		frameHandler: nil,
 		errorHandler: func(err error) {
-			log.Println(err)
+			log.Error("Hysc error", "error", err)
 		},
+
+		log: log,
 
 		Image: widget,
 	}, nil
 }
 
 func (s *Stream) Start(fps int, buferSize ...int) error {
-	app, err := wl.NewApp(hclog.Default())
+	app, err := wl.NewApp(s.log)
 	if err != nil {
 		return fmt.Errorf("failed to wayland connection: %v", err)
 	}
@@ -178,7 +182,7 @@ func (s *Stream) Start(fps int, buferSize ...int) error {
 func (s *Stream) CaptureFrame() error {
 	log.Printf("DEBUG HYSC: Starting CaptureFrame for handle %d", s.handle)
 
-	app, err := wl.NewApp(hclog.Default())
+	app, err := wl.NewApp(s.log)
 	if err != nil {
 		log.Printf("ERROR HYSC: Wayland connection failed: %v", err)
 		return fmt.Errorf("failed to wayland connection: %v", err)

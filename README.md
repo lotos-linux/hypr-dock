@@ -74,6 +74,9 @@ layerrule = ignore_alpha 0,match:namespace dock-popup
 
 ## Configuration
 
+#### !Important!
+If you already had `hypr-dock` installed or you are updating, please note that starting from version 1.2.0, an `ini`-like configuration format is now used. If you have old configs remaining in your user folder, be sure to delete or move them. Then simply adapt your settings to the new format.
+
 ### Available parameters in `hypr-dock.conf`
 
 ```ini

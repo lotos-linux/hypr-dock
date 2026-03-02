@@ -1,7 +1,6 @@
 package utils
 
 import (
-	layerinfo "hypr-dock/internal/layerInfo"
 	"math"
 	"strings"
 
@@ -10,52 +9,39 @@ import (
 	"github.com/pkg/errors"
 )
 
-func CreateImageWidthScale(source string, size int, scaleFactor float64) (*gtk.Image, error) {
+func CreateImageWidthScale(source string, size int, parent gtk.IWidget, scaleFactor float64) (*gtk.Image, error) {
 	scaleSize := int(math.Round(float64(size) * math.Max(scaleFactor, 0)))
 
-	return CreateImage(source, scaleSize)
+	return CreateImage(source, scaleSize, parent)
 }
 
-func CreateImage(source string, size int) (*gtk.Image, error) {
-	image, err := CreateImage0(source, size)
+func CreateImage(source string, size int, parent gtk.IWidget) (*gtk.Image, error) {
+	image, err := CreateImage0(source, size, parent)
 	if err == nil {
 		return image, nil
 	}
-	return CreateImage("image-missing", size)
+	return CreateImage("image-missing", size, parent)
 }
 
-func CreateImage0(source string, size int) (*gtk.Image, error) {
-	var scale float64 = 1.0
-	var pixbuf *gdk.Pixbuf
+func CreateImage0(source string, size int, parent gtk.IWidget) (*gtk.Image, error) {
+	w := parent.ToWidget()
 	var err error
+	var pixbuf *gdk.Pixbuf
 
-	monitor, err := layerinfo.GetMonitor()
-	if err == nil {
-		scale = monitor.Scale
-	}
-
-	physicalSize := int(float64(size) * scale)
+	scaleFactor := w.GetScaleFactor()
+	physicalSize := size * scaleFactor
 
 	if strings.Contains(source, "/") {
-		// File name
 		pixbuf, err = gdk.PixbufNewFromFileAtSize(source, physicalSize, physicalSize)
-		if err != nil {
-			return nil, err
-		}
 	} else {
-		// Icon name
-		theme, err := gtk.IconThemeGetDefault()
-		if err != nil {
-			return nil, err
-		}
-
+		theme, _ := gtk.IconThemeGetDefault()
 		pixbuf, err = theme.LoadIcon(source, physicalSize, gtk.ICON_LOOKUP_FORCE_SIZE)
-		if err != nil {
-			return nil, err
-		}
+	}
+	if err != nil {
+		return nil, err
 	}
 
-	surface, err := gdk.CairoSurfaceCreateFromPixbuf(pixbuf, 1, nil)
+	surface, err := gdk.CairoSurfaceCreateFromPixbuf(pixbuf, scaleFactor, nil)
 	if err != nil {
 		return nil, err
 	}

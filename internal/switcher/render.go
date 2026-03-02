@@ -235,7 +235,7 @@ func (s *Switcher) setupScreenshot(c ipc.Client, w, h int, centerBox *gtk.Box, o
 						badgeSize = 96
 					}
 				}
-				badge, _ := utils.CreateImage(iconName, badgeSize)
+				badge, _ := utils.CreateImage(iconName, badgeSize, overlay)
 				badge.SetHAlign(gtk.ALIGN_CENTER)
 				badge.SetVAlign(gtk.ALIGN_START)
 				badge.SetMarginTop(8)

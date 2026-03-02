@@ -15,9 +15,10 @@ type Stream struct {
 	address string
 	handle  uint64
 
-	size       *Size
-	scaleMode  *ScaleMode
-	interpType gdk.InterpType
+	size        *Size
+	scaleMode   *ScaleMode
+	interpType  gdk.InterpType
+	scaleFactor int
 
 	effects map[string]func(p *gdk.Pixbuf) error
 	masks   map[string]func(p *gdk.Pixbuf) error
@@ -74,9 +75,10 @@ func StreamNew(address string, log hclog.Logger) (*Stream, error) {
 		address: address,
 		handle:  handle,
 
-		size:       nil,
-		scaleMode:  nil,
-		interpType: gdk.INTERP_BILINEAR,
+		size:        nil,
+		scaleMode:   nil,
+		interpType:  gdk.INTERP_BILINEAR,
+		scaleFactor: 1,
 
 		effects: make(map[string]func(p *gdk.Pixbuf) error, 0),
 		masks:   make(map[string]func(p *gdk.Pixbuf) error, 0),
@@ -151,11 +153,18 @@ func (s *Stream) Start(fps int, buferSize ...int) error {
 				}
 
 				size := &Size{
-					W: pixbuf.GetWidth(),
-					H: pixbuf.GetHeight(),
+					W: pixbuf.GetWidth() / s.scaleFactor,
+					H: pixbuf.GetHeight() / s.scaleFactor,
 				}
 
-				s.SetFromPixbuf(pixbuf)
+				surface, err := gdk.CairoSurfaceCreateFromPixbuf(pixbuf, s.scaleFactor, nil)
+				if err != nil {
+					s.errorHandler(err)
+					return
+				}
+
+				s.SetFromSurface(surface)
+				s.SetPixelSize(size.W)
 
 				if s.size == nil && s.readyHandler != nil {
 					s.readyHandler(size)
@@ -226,11 +235,18 @@ func (s *Stream) CaptureFrame() error {
 	}
 
 	size := &Size{
-		W: pixbuf.GetWidth(),
-		H: pixbuf.GetHeight(),
+		W: pixbuf.GetWidth() / s.scaleFactor,
+		H: pixbuf.GetHeight() / s.scaleFactor,
 	}
 	glib.IdleAdd(func() {
-		s.SetFromPixbuf(pixbuf)
+		surface, err := gdk.CairoSurfaceCreateFromPixbuf(pixbuf, s.scaleFactor, nil)
+		if err != nil {
+			s.errorHandler(err)
+			return
+		}
+
+		s.SetFromSurface(surface)
+		s.SetPixelSize(size.W)
 
 		log.Printf("DEBUG HYSC: Calling readyHandler with size %dx%d", size.W, size.H)
 		if s.readyHandler != nil {
@@ -287,11 +303,18 @@ func (s *Stream) CaptureFrameWithApp(app *wl.App) error {
 	}
 
 	size := &Size{
-		W: pixbuf.GetWidth(),
-		H: pixbuf.GetHeight(),
+		W: pixbuf.GetWidth() / s.scaleFactor,
+		H: pixbuf.GetHeight() / s.scaleFactor,
 	}
 	glib.IdleAdd(func() {
-		s.SetFromPixbuf(pixbuf)
+		surface, err := gdk.CairoSurfaceCreateFromPixbuf(pixbuf, s.scaleFactor, nil)
+		if err != nil {
+			s.errorHandler(err)
+			return
+		}
+
+		s.SetFromSurface(surface)
+		s.SetPixelSize(size.W)
 
 		log.Printf("DEBUG HYSC: Calling readyHandler with size %dx%d", size.W, size.H)
 		if s.readyHandler != nil {
@@ -323,6 +346,10 @@ func (s *Stream) SetFixedSize(width int, height int) {
 		scaleW: width,
 		scaleH: height,
 	}
+}
+
+func (s *Stream) SetScaleFactor(factor int) {
+	s.scaleFactor = factor
 }
 
 func (s *Stream) ResetSize() {
@@ -414,8 +441,8 @@ func (s *Stream) scale(pixbuf *gdk.Pixbuf) (*gdk.Pixbuf, error) {
 	// fixed dimensions
 	if s.scaleMode.scaleH > 0 && s.scaleMode.scaleW > 0 {
 		return pixbuf.ScaleSimple(
-			s.scaleMode.scaleW,
-			s.scaleMode.scaleH,
+			s.scaleMode.scaleW*s.scaleFactor,
+			s.scaleMode.scaleH*s.scaleFactor,
 			s.interpType,
 		)
 	}
@@ -427,8 +454,8 @@ func (s *Stream) scale(pixbuf *gdk.Pixbuf) (*gdk.Pixbuf, error) {
 		newWidth := int(float64(newHeight) * ratio)
 
 		return pixbuf.ScaleSimple(
-			newWidth,
-			newHeight,
+			newWidth*s.scaleFactor,
+			newHeight*s.scaleFactor,
 			s.interpType,
 		)
 	}
@@ -440,8 +467,8 @@ func (s *Stream) scale(pixbuf *gdk.Pixbuf) (*gdk.Pixbuf, error) {
 		newHeight := int(float64(newWidth) * ratio)
 
 		return pixbuf.ScaleSimple(
-			newWidth,
-			newHeight,
+			newWidth*s.scaleFactor,
+			newHeight*s.scaleFactor,
 			s.interpType,
 		)
 	}
@@ -453,8 +480,8 @@ func (s *Stream) scale(pixbuf *gdk.Pixbuf) (*gdk.Pixbuf, error) {
 		newHeight := int(float64(origHeight) * factor)
 
 		return pixbuf.ScaleSimple(
-			newWidth,
-			newHeight,
+			newWidth*s.scaleFactor,
+			newHeight*s.scaleFactor,
 			s.interpType,
 		)
 	}

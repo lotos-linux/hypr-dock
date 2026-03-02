@@ -112,7 +112,7 @@ func (w *Widget) createWindowWidget(window *ipc.Client) error {
 	}
 	titleBox.SetMarginBottom(padding / 2)
 
-	icon, err := utils.CreateImage(w.item.App.GetIcon(), 16)
+	icon, err := utils.CreateImage(w.item.App.GetIcon(), 16, titleBox)
 	if err != nil {
 		return err
 	}
@@ -207,6 +207,7 @@ func (w *Widget) createWindowWidget(window *ipc.Client) error {
 
 	stream.SetHScale(w.settings.PreviewStyle.Size)
 	stream.SetBorderRadius(w.settings.PreviewStyle.BorderRadius)
+	stream.SetScaleFactor(windowBoxContent.ToWidget().GetScaleFactor())
 
 	if w.settings.Preview.Mode == "live" {
 		err = stream.Start(w.settings.Preview.FPS, w.settings.Preview.BufferSize)

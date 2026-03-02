@@ -50,7 +50,7 @@ func New(className string, settings *settings.Settings, log hclog.Logger) (*Item
 		return nil, err
 	}
 
-	indicatorImage, err := indicator.New(0, settings)
+	indicatorImage, err := indicator.New(0, settings, item)
 	if err == nil {
 		appendInducator(item, indicatorImage, settings.Position)
 	} else {
@@ -59,7 +59,7 @@ func New(className string, settings *settings.Settings, log hclog.Logger) (*Item
 
 	button, err := gtk.ButtonNew()
 	if err == nil {
-		image, err := utils.CreateImage(app.GetIcon(), settings.IconSize)
+		image, err := utils.CreateImage(app.GetIcon(), settings.IconSize, item)
 		if err == nil {
 			button.SetImage(image)
 		} else {
@@ -101,7 +101,7 @@ func (i *Item) RemoveWindow(windowAddress string) {
 	delete(i.Windows, windowAddress)
 	instances := len(i.Windows)
 
-	newImage, err := indicator.New(instances, i.Settings)
+	newImage, err := indicator.New(instances, i.Settings, i.Button)
 	if err == nil {
 		appendInducator(i.ButtonBox, newImage, i.Settings.Position)
 	}
@@ -120,7 +120,7 @@ func (i *Item) AddWindow(ipcClient ipc.Client) {
 	i.Windows[ipcClient.Address] = &ipcClient
 	instances := len(i.Windows)
 
-	indicatorImage, err := indicator.New(instances, i.Settings)
+	indicatorImage, err := indicator.New(instances, i.Settings, i.Button)
 	if err == nil {
 		appendInducator(i.ButtonBox, indicatorImage, i.Settings.Position)
 	}

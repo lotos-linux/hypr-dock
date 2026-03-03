@@ -1,6 +1,7 @@
 package item
 
 import (
+	"log"
 	"slices"
 
 	"github.com/gotk3/gotk3/gdk"
@@ -204,26 +205,26 @@ func (i *Item) GetCord() (*Position, error) {
 	}
 
 	// Add monitor offset
-	monitors, err := ipc.GetMonitors()
+	hyprMonitor, err := ipc.SearchMonitorByName(dock.Monitor)
 	if err != nil {
-		i.log.Error("Error getting monitors:", "error", err)
-	} else {
-		for _, m := range monitors {
-			if m.Name == dock.Monitor {
-				result.X = m.X
-				result.Y = m.Y
-				break
-			}
-		}
+		i.log.Error("Error getting monitor:", "error", err)
 	}
+
+	log.Println(dock.Y, hyprMonitor.Height)
 
 	// get coord with centring
 	switch pos {
-	case "bottom", "top":
+	case "bottom":
 		result.CX = result.X + dock.X + result.RelX + result.W/2
-		result.CY = result.Y + margin + dock.H
-	case "left", "right":
-		result.CX = result.X + margin + dock.W
+		result.CY = result.Y + margin + dock.H + (hyprMonitor.Height - (dock.Y + dock.H))
+	case "top":
+		result.CX = result.X + dock.X + result.RelX + result.W/2
+		result.CY = result.Y + margin + dock.H + dock.Y
+	case "left":
+		result.CX = result.X + margin + dock.W + dock.X
+		result.CY = result.Y + dock.Y + result.RelY + result.H/2
+	case "right":
+		result.CX = result.X + margin + dock.W + (hyprMonitor.Width - (dock.X + dock.W))
 		result.CY = result.Y + dock.Y + result.RelY + result.H/2
 	}
 

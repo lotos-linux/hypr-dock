@@ -172,7 +172,7 @@ func (s *Switcher) capturePreviewAsync(
 						badgeSize = 96
 					}
 				}
-				badge, _ := utils.CreateImage(iconName, badgeSize, overlay)
+				badge, _ := utils.CreateImage(iconName, badgeSize)
 				badge.SetHAlign(gtk.ALIGN_CENTER)
 				badge.SetVAlign(gtk.ALIGN_START)
 				badge.SetMarginTop(8)

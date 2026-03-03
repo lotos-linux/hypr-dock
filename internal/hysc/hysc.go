@@ -78,7 +78,7 @@ func StreamNew(address string, log hclog.Logger) (*Stream, error) {
 		size:        nil,
 		scaleMode:   nil,
 		interpType:  gdk.INTERP_BILINEAR,
-		scaleFactor: 1,
+		scaleFactor: widget.GetScaleFactor(),
 
 		effects: make(map[string]func(p *gdk.Pixbuf) error, 0),
 		masks:   make(map[string]func(p *gdk.Pixbuf) error, 0),

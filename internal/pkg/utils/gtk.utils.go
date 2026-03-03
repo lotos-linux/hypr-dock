@@ -9,26 +9,30 @@ import (
 	"github.com/pkg/errors"
 )
 
-func CreateImageWidthTransform(source string, size int, parent gtk.IWidget, scaleFactor float64, rotate bool) (*gtk.Image, error) {
+func CreateImageWidthTransform(source string, size int, scaleFactor float64, rotate bool) (*gtk.Image, error) {
 	scaleSize := int(math.Round(float64(size) * math.Max(scaleFactor, 0)))
 
-	return CreateImage0(source, scaleSize, parent, rotate)
+	return CreateImage0(source, scaleSize, rotate)
 }
 
-func CreateImage(source string, size int, parent gtk.IWidget) (*gtk.Image, error) {
-	image, err := CreateImage0(source, size, parent, false)
+func CreateImage(source string, size int) (*gtk.Image, error) {
+	image, err := CreateImage0(source, size, false)
 	if err == nil {
 		return image, nil
 	}
-	return CreateImage("image-missing", size, parent)
+	return CreateImage0("image-missing", size, false)
 }
 
-func CreateImage0(source string, size int, parent gtk.IWidget, rotate bool) (*gtk.Image, error) {
-	w := parent.ToWidget()
+func CreateImage0(source string, size int, rotate bool) (*gtk.Image, error) {
 	var err error
 	var pixbuf *gdk.Pixbuf
 
-	scaleFactor := w.GetScaleFactor()
+	image, err := gtk.ImageNew()
+	if err != nil {
+		return nil, err
+	}
+
+	scaleFactor := image.GetScaleFactor()
 	physicalSize := size * scaleFactor
 
 	if strings.Contains(source, "/") {
@@ -49,11 +53,6 @@ func CreateImage0(source string, size int, parent gtk.IWidget, rotate bool) (*gt
 	}
 
 	surface, err := gdk.CairoSurfaceCreateFromPixbuf(pixbuf, scaleFactor, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	image, err := gtk.ImageNew()
 	if err != nil {
 		return nil, err
 	}

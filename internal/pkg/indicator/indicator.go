@@ -23,7 +23,7 @@ type IndicatorFile struct {
 }
 
 // New creates a new indicator image based on instances count
-func New(instances int, settings *settings.Settings, parent gtk.IWidget) (*gtk.Image, error) {
+func New(instances int, settings *settings.Settings) (*gtk.Image, error) {
 	available, err := GetAvailable(settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get indicators: %w", err)
@@ -39,7 +39,7 @@ func New(instances int, settings *settings.Settings, parent gtk.IWidget) (*gtk.I
 	path := filepath.Join(settings.ThemeDir, "point", selected.FullName)
 
 	rotate := settings.Position == "left" || settings.Position == "right"
-	return utils.CreateImageWidthTransform(path, settings.IconSize, parent, 0.56, rotate)
+	return utils.CreateImageWidthTransform(path, settings.IconSize, 0.56, rotate)
 }
 
 // selectIndicatorFile chooses the appropriate indicator file based on instances count

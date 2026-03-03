@@ -198,7 +198,7 @@ func BuildContextItem(labelText string, connectFunc func(), iconName ...string) 
 	label.SetMaxWidthChars(30)
 
 	if len(iconName) > 0 {
-		icon, err := utils.CreateImage(iconName[0], size, hbox)
+		icon, err := utils.CreateImage(iconName[0], size)
 		if err == nil {
 			hbox.Add(icon)
 		}

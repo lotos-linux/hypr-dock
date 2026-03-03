@@ -52,7 +52,11 @@ func GetGap() ([]int, error) {
 }
 
 func GapChangeEvent(handler func(gap []int)) {
-	var preGaps []int
+	preGaps, err := GetGap()
+	if err != nil {
+		return
+	}
+
 	ipc.AddEventListener("configreloaded", func(e string) {
 		gaps, err := GetGap()
 		if err != nil {

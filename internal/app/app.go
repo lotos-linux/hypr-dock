@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"slices"
 
@@ -139,12 +140,14 @@ func initMargin(app *gtk.Box, appState *state.State) {
 	if err != nil {
 		log.Error("Failed to get gaps, indent set from settings", "error", err)
 		setMargin(app, position, defMargin)
+		return
 	}
 
 	setMargin(app, position, margin...)
 
 	hyprOpt.GapChangeEvent(func(gaps []int) {
 		setMargin(app, position, gaps...)
+		fmt.Println(gaps)
 	})
 }
 
@@ -164,14 +167,14 @@ func setMargin(app *gtk.Box, position string, margin ...int) {
 
 	if len(margin) == 4 {
 		switch position {
-		case "bottom":
-			app.SetMarginBottom(margin[0])
-		case "left":
-			app.SetMarginStart(margin[1])
-		case "right":
-			app.SetMarginEnd(margin[2])
 		case "top":
-			app.SetMarginTop(margin[3])
+			app.SetMarginTop(margin[0])
+		case "right":
+			app.SetMarginEnd(margin[1])
+		case "bottom":
+			app.SetMarginBottom(margin[2])
+		case "left":
+			app.SetMarginStart(margin[3])
 		}
 	}
 }

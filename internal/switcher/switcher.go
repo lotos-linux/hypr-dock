@@ -49,7 +49,7 @@ type CachedScreenshot struct {
 	Timestamp time.Time
 }
 
-func Run() {
+func Run(confPath string) {
 	// Initialize debug timing system
 	initDebugTiming()
 	defer closeDebugTiming()
@@ -66,7 +66,7 @@ func Run() {
 		monitorMap:      make(map[int]ipc.Monitor),
 		altWasHeld:      true, // ASSUME Held on start
 		startTime:       time.Now(),
-		config:          LoadConfig(),
+		config:          LoadConfig(confPath),
 		visible:         true,
 		iconPathCache:   make(map[string]string),
 		screenshotCache: make(map[string]*CachedScreenshot),
@@ -82,7 +82,7 @@ func Run() {
 
 	// Singleton Check
 	logTiming("Checking singleton lock")
-	if !setupSingleton(s) {
+	if !setupSingleton() {
 		return
 	}
 	defer os.Remove("/tmp/hypr-dock-switcher.lock")

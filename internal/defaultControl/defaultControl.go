@@ -3,28 +3,28 @@ package defaultcontrol
 import (
 	"hypr-dock/internal/item"
 	"hypr-dock/internal/pkg/utils"
-	"hypr-dock/internal/state"
+	"hypr-dock/internal/settings"
 	"hypr-dock/pkg/ipc"
-	"log"
 
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/hashicorp/go-hclog"
 )
 
 type Control struct {
 	item     *item.Item
-	appState *state.State
+	settings *settings.Settings
+	log      hclog.Logger
 
 	zeroHandler   func()
 	singleHandler func()
-	multiHandler  func()
+	multiHandler  func(onContextClose func())
 
-	onContext func()
+	onContextOpen  func()
+	onContextClose func()
 }
 
-func New(item *item.Item, appState *state.State) *Control {
-	settings := appState.GetSettings()
-
+func New(item *item.Item, settings *settings.Settings, log hclog.Logger) *Control {
 	zeroHandler := func() {
 		item.App.Run()
 	}
@@ -36,16 +36,16 @@ func New(item *item.Item, appState *state.State) *Control {
 		}
 	}
 
-	multiHandler := func() {
+	multiHandler := func(onContextClose func()) {
 		menu, err := item.WindowsMenu()
 		if err != nil {
-			log.Println(err)
+			log.Error("Unable to create windows menu", "error", err)
 			return
 		}
 
 		win, zone, err := getActivateZone(item.Button, settings.ContextPos, settings.Position)
 		if err != nil {
-			log.Println(err)
+			log.Error("Failed to get activate zone", "error", err)
 			return
 		}
 
@@ -53,13 +53,16 @@ func New(item *item.Item, appState *state.State) *Control {
 		menu.PopupAtRect(win, zone, firstg, secondg, nil)
 		menu.Connect("deactivate", func() {
 			item.Button.SetStateFlags(gtk.STATE_FLAG_NORMAL, true)
-			appState.GetLayerctl().SendUnfocus()
+			if onContextClose != nil {
+				onContextClose()
+			}
 		})
 	}
 
 	return &Control{
 		item:     item,
-		appState: appState,
+		settings: settings,
+		log:      log,
 
 		zeroHandler:   zeroHandler,
 		singleHandler: singleHandler,
@@ -80,7 +83,7 @@ func (c *Control) Init() {
 			c.singleHandler()
 		}
 		if instances > 1 {
-			c.multiHandler()
+			c.multiHandler(c.onContextClose)
 		}
 	})
 }
@@ -94,43 +97,47 @@ func (c *Control) ResetSingle(newHandler func()) {
 }
 
 func (c *Control) ResetMulti(newHandler func()) {
-	c.multiHandler = newHandler
+	c.multiHandler = func(onContextClose func()) {
+		newHandler()
+	}
 }
 
 func (c *Control) OnContextOpen(handler func()) {
-	c.onContext = handler
+	c.onContextOpen = handler
+}
+
+func (c *Control) OnContextClose(handler func()) {
+	c.onContextClose = handler
 }
 
 func (c *Control) connectContextMenu() {
-	appState := c.appState
-	settings := appState.GetSettings()
-	item := c.item
-
-	item.Button.Connect("button-release-event", func(button *gtk.Button, e *gdk.Event) {
+	c.item.Button.Connect("button-release-event", func(button *gtk.Button, e *gdk.Event) {
 		event := gdk.EventButtonNewFromEvent(e)
 		if event.Button() == 3 {
-			menu, err := item.ContextMenu(settings)
+			menu, err := c.item.ContextMenu()
 			if err != nil {
-				log.Println(err)
+				c.log.Error("Unable to create context menu", "error", err)
 				return
 			}
 
-			win, zone, err := getActivateZone(item.Button, settings.ContextPos, settings.Position)
+			win, zone, err := getActivateZone(c.item.Button, c.settings.ContextPos, c.settings.Position)
 			if err != nil {
-				log.Println(err)
+				c.log.Error("Failed to get activate zone", "error", err)
 				return
 			}
 
-			firstg, secondg := getGravity(settings.Position)
+			firstg, secondg := getGravity(c.settings.Position)
 			menu.PopupAtRect(win, zone, firstg, secondg, nil)
 
-			if c.onContext != nil {
-				c.onContext()
+			if c.onContextOpen != nil {
+				c.onContextOpen()
 			}
 
 			menu.Connect("deactivate", func() {
-				item.Button.SetStateFlags(gtk.STATE_FLAG_NORMAL, true)
-				appState.GetLayerctl().SendUnfocus()
+				c.item.Button.SetStateFlags(gtk.STATE_FLAG_NORMAL, true)
+				if c.onContextClose != nil {
+					c.onContextClose()
+				}
 			})
 
 			return

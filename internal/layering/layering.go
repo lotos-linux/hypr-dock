@@ -13,7 +13,7 @@ import (
 
 type Control struct {
 	window   *gtk.Window
-	settings settings.Settings
+	settings *settings.Settings
 	da       *detectzone.DetectArea
 
 	smartEnter glib.SignalHandle
@@ -28,7 +28,7 @@ type Control struct {
 	layers map[string]layershell.LayerShellLayerFlags
 }
 
-func New(window *gtk.Window, settings settings.Settings) *Control {
+func New(window *gtk.Window, settings *settings.Settings) *Control {
 	layers := map[string]layershell.LayerShellLayerFlags{
 		"background": layershell.LAYER_SHELL_LAYER_BACKGROUND,
 		"bottom":     layershell.LAYER_SHELL_LAYER_BOTTOM,
@@ -53,7 +53,7 @@ func (c *Control) Init() {
 	c.SetLayer()
 }
 
-func NewInit(window *gtk.Window, settings settings.Settings) *Control {
+func NewInit(window *gtk.Window, settings *settings.Settings) *Control {
 	ctrl := New(window, settings)
 	ctrl.Init()
 	return ctrl
@@ -62,12 +62,12 @@ func NewInit(window *gtk.Window, settings settings.Settings) *Control {
 func (c *Control) SetLayer() {
 	c.clear()
 
-	if c.settings.SmartView == "true" {
+	if c.settings.SmartView {
 		c.smart()
 		return
 	}
 
-	if c.settings.Exclusive == "true" {
+	if c.settings.Exclusive {
 		layershell.AutoExclusiveZoneEnable(c.window)
 	}
 
@@ -101,13 +101,16 @@ func (c *Control) SetPosition() {
 func (c *Control) smart() {
 	layershell.SetLayer(c.window, c.layers["bottom"])
 
-	c.da = detectzone.New(c.window, c.settings)
-	c.da.OnEnter(func() {
-		c.SendFocus()
-	})
-	c.da.OnLeave(func() {
-		c.SendUnfocus()
-	})
+	da, err := detectzone.New(c.window, c.settings)
+	if err == nil {
+		da.OnEnter(func() {
+			c.SendFocus()
+		})
+		da.OnLeave(func() {
+			c.SendUnfocus()
+		})
+		c.da = da
+	}
 
 	c.smartEnter = c.window.Connect("enter-notify-event", func(_ *gtk.Window, e *gdk.Event) {
 		if !is_e3e4(e) || c.special {
@@ -144,7 +147,7 @@ func (c *Control) clear() {
 }
 
 func (c *Control) SendUnfocus() {
-	if c.settings.SmartView != "true" {
+	if !c.settings.SmartView {
 		return
 	}
 
@@ -154,7 +157,7 @@ func (c *Control) SendUnfocus() {
 }
 
 func (c *Control) SendFocus() {
-	if c.settings.SmartView != "true" {
+	if !c.settings.SmartView {
 		return
 	}
 

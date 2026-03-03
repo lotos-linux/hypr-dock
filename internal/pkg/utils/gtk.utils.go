@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"log"
 	"math"
 	"strings"
 
@@ -10,45 +9,58 @@ import (
 	"github.com/pkg/errors"
 )
 
-func CreateImageWidthScale(source string, size int, scaleFactor float64) (*gtk.Image, error) {
+func CreateImageWidthTransform(source string, size int, scaleFactor float64, rotate bool) (*gtk.Image, error) {
 	scaleSize := int(math.Round(float64(size) * math.Max(scaleFactor, 0)))
 
-	return CreateImage(source, scaleSize)
+	return CreateImage0(source, scaleSize, rotate)
 }
 
 func CreateImage(source string, size int) (*gtk.Image, error) {
-	pixbuf, err := CreatePixbuf(source, size)
+	image, err := CreateImage0(source, size, false)
+	if err == nil {
+		return image, nil
+	}
+	return CreateImage0("image-missing", size, false)
+}
+
+func CreateImage0(source string, size int, rotate bool) (*gtk.Image, error) {
+	var err error
+	var pixbuf *gdk.Pixbuf
+
+	image, err := gtk.ImageNew()
 	if err != nil {
 		return nil, err
 	}
-	return gtk.ImageNewFromPixbuf(pixbuf)
-}
 
-func CreatePixbuf(source string, size int) (*gdk.Pixbuf, error) {
-	// Create image in file
+	scaleFactor := image.GetScaleFactor()
+	physicalSize := size * scaleFactor
+
 	if strings.Contains(source, "/") {
-		pixbuf, err := gdk.PixbufNewFromFileAtSize(source, size, size)
-		if err != nil {
-			log.Println(err)
-			return CreatePixbuf("image-missing", size)
+		pixbuf, err = gdk.PixbufNewFromFileAtSize(source, physicalSize, physicalSize)
+	} else {
+		theme, _ := gtk.IconThemeGetDefault()
+		pixbuf, err = theme.LoadIcon(source, physicalSize, gtk.ICON_LOOKUP_FORCE_SIZE)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if rotate {
+		rotPixbuf, err := pixbuf.RotateSimple(gdk.PIXBUF_ROTATE_COUNTERCLOCKWISE)
+		if err == nil {
+			pixbuf = rotPixbuf
 		}
-		return pixbuf, nil
 	}
 
-	// Create image in icon name
-	iconTheme, err := gtk.IconThemeGetDefault()
+	surface, err := gdk.CairoSurfaceCreateFromPixbuf(pixbuf, scaleFactor, nil)
 	if err != nil {
-		log.Println("Unable to icon theme:", err)
-		return CreatePixbuf("image-missing", size)
+		return nil, err
 	}
 
-	pixbuf, err := iconTheme.LoadIcon(source, size, gtk.ICON_LOOKUP_FORCE_SIZE)
-	if err != nil {
-		// log.Println(source, err) // Reduce noise?
-		return CreatePixbuf("image-missing", size)
-	}
+	image.SetFromSurface(surface)
+	image.SetPixelSize(size)
 
-	return pixbuf, nil
+	return image, nil
 }
 
 func AddStyle(widget gtk.IWidget, style string) (*gtk.CssProvider, error) {
@@ -75,18 +87,15 @@ func AddStyle(widget gtk.IWidget, style string) (*gtk.CssProvider, error) {
 func AddCssProvider(cssFile string) error {
 	cssProvider, err := gtk.CssProviderNew()
 	if err != nil {
-		log.Printf("Failed to create CSS provider: %v", err)
 		return errors.Wrap(err, "failed to create CSS provider")
 	}
 
 	if err := cssProvider.LoadFromPath(cssFile); err != nil {
-		log.Printf("Failed to load CSS from %q: %v", cssFile, err)
 		return errors.Wrapf(err, "failed to load CSS from %q", cssFile)
 	}
 
 	screen, err := gdk.ScreenGetDefault()
 	if err != nil {
-		log.Printf("Failed to get default screen: %v", err)
 		return errors.Wrap(err, "failed to get default screen")
 	}
 
@@ -98,19 +107,18 @@ func AddCssProvider(cssFile string) error {
 	return nil
 }
 
-func RemoveStyleProvider(widget *gtk.Box, provider *gtk.CssProvider) {
+func RemoveStyleProvider(widget *gtk.Box, provider *gtk.CssProvider) error {
 	if provider == nil {
-		log.Println("provider is nil")
-		return
+		return errors.New("provider is nil")
 	}
 
 	styleContext, err := widget.GetStyleContext()
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	styleContext.RemoveProvider(provider)
+	return nil
 }
 
 func GetFirstAvailableImage(sources []string, fallback ...string) string {
@@ -137,11 +145,10 @@ func GetFirstAvailableImage(sources []string, fallback ...string) string {
 	return fallbackImg
 }
 
-func SetCursorPointer(v *gtk.Widget) {
+func SetCursorPointer(v *gtk.Widget) error {
 	display, err := gdk.DisplayGetDefault()
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	pointer, _ := gdk.CursorNewFromName(display, "pointer")
@@ -162,6 +169,8 @@ func SetCursorPointer(v *gtk.Widget) {
 			win.SetCursor(arrow)
 		}
 	})
+
+	return nil
 }
 
 func SetAutoHover(v *gtk.Widget, context *gtk.StyleContext) {

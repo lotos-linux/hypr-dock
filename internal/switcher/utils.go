@@ -82,6 +82,6 @@ func enableDebugLog(format string, v ...interface{}) {
 		defer f.Close()
 		msg := fmt.Sprintf(format, v...)
 		timestamp := time.Now().Format("15:04:05.000")
-		f.WriteString(fmt.Sprintf("[%s] %s\n", timestamp, msg))
+		fmt.Fprintf(f, "[%s] %s\n", timestamp, msg)
 	}
 }

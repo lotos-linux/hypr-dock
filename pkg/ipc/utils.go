@@ -26,6 +26,20 @@ func SearchClientByAddress(address string) (Client, error) {
 	return Client{}, err
 }
 
+func SearchMonitorByName(name string) (*Monitor, error) {
+	monitors, err := GetMonitors()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, monitor := range monitors {
+		if monitor.Name == name {
+			return &monitor, nil
+		}
+	}
+	return nil, errors.New("Monitor not found by name: " + name)
+}
+
 func getHyprPathes() (XDGRuntimeDirHypr string, HIS string) {
 	XDGRuntimeDirHypr = filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "hypr")
 	HIS = os.Getenv("HYPRLAND_INSTANCE_SIGNATURE")

@@ -1,8 +1,6 @@
 package hyprEvents
 
 import (
-	"fmt"
-	"log"
 	"strings"
 
 	"github.com/gotk3/gotk3/glib"
@@ -39,14 +37,16 @@ func windowTitleHandler(event string, appState *state.State) {
 }
 
 func activatespecialHandler(event string, appState *state.State) {
+	log := appState.GetLogger()
+
 	data := eventHandler(event, 2)
-	log.Printf("Received activespecial event: %v", data)
+	log.Debug("Received activespecial event:", "event", data)
 
 	if data[0] == "special:special" {
-		log.Println("Special workspace activated")
+		log.Debug("Special workspace activated")
 		appState.GetLayerctl().SetSpecial(true)
 	} else {
-		log.Println("Special workspace deactivated")
+		log.Debug("Special workspace deactivated")
 		appState.GetLayerctl().SetSpecial(false)
 	}
 }
@@ -56,7 +56,7 @@ func openwindowHandler(event string, appState *state.State) {
 	address := "0x" + strings.TrimSpace(data[0])
 	windowClient, err := ipc.SearchClientByAddress(address)
 	if err != nil {
-		fmt.Println(err)
+		appState.GetLogger().Error("Client not found", "address", address, "error", err)
 	} else {
 		glib.IdleAdd(func() {
 			app.InitNewItemInIPC(windowClient, appState)

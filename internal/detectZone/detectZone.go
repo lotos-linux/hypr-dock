@@ -1,8 +1,8 @@
 package detectzone
 
 import (
+	"fmt"
 	"hypr-dock/internal/settings"
-	"log"
 
 	"github.com/dlasky/gotk3-layershell/layershell"
 	"github.com/gotk3/gotk3/gdk"
@@ -16,20 +16,14 @@ type DetectArea struct {
 	*gtk.Window
 }
 
-func New(mainWindow *gtk.Window, settings settings.Settings) *DetectArea {
+func New(mainWindow *gtk.Window, settings *settings.Settings) (*DetectArea, error) {
 	detectWindow, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {
-		log.Fatal("InitDetectArea(), gtk.WindowNew() | ", err)
+		return nil, fmt.Errorf("unable to create gtk window in package \"detectZone\": %v", err)
 	}
 
 	da := &DetectArea{
 		Window: detectWindow,
-		onEnter: func() {
-			log.Printf("Detect enter")
-		},
-		onLeave: func() {
-			log.Printf("Detect leave")
-		},
 	}
 
 	da.SetName("detect")
@@ -45,16 +39,20 @@ func New(mainWindow *gtk.Window, settings settings.Settings) *DetectArea {
 
 	da.ShowAll()
 
-	return da
+	return da, nil
 }
 
 func (da *DetectArea) clickes() {
 	da.Connect("enter-notify-event", func(detectWindow *gtk.Window, e *gdk.Event) {
-		da.onEnter()
+		if da.onEnter != nil {
+			da.onEnter()
+		}
 	})
 
 	da.Connect("leave-notify-event", func(detectWindow *gtk.Window, e *gdk.Event) {
-		da.onLeave()
+		if da.onLeave != nil {
+			da.onLeave()
+		}
 	})
 }
 
@@ -66,7 +64,7 @@ func (da *DetectArea) OnLeave(handler func()) {
 	da.onLeave = handler
 }
 
-func selectEdges(window *gtk.Window, settings settings.Settings) {
+func selectEdges(window *gtk.Window, settings *settings.Settings) {
 	switch settings.Position {
 	case "left":
 		layershell.SetAnchor(window, layershell.LAYER_SHELL_EDGE_BOTTOM, true)

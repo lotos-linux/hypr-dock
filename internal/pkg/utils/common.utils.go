@@ -1,6 +1,10 @@
 package utils
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/hashicorp/go-hclog"
+)
 
 func AddToSlice(slice *[]string, value string) {
 	*slice = append(*slice, value)
@@ -39,4 +43,18 @@ func GetSingleValue[K comparable, V any](m map[K]V) (V, bool) {
 	}
 	var zero V
 	return zero, false
+}
+
+func СreateLogger(logLevel string) hclog.Logger {
+	level := hclog.LevelFromString(logLevel)
+
+	if level == hclog.NoLevel {
+		level = hclog.Info
+	}
+
+	return hclog.New(&hclog.LoggerOptions{
+		Name:  "hypr-dock",
+		Level: level,
+		Color: hclog.AutoColor,
+	})
 }

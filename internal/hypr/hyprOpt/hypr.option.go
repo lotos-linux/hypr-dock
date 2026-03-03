@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"hypr-dock/pkg/ipc"
-	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -23,19 +22,16 @@ func GetGap() ([]int, error) {
 	err := ipc.GetOption(option, &gapsVal)
 	if err != nil {
 		err = fmt.Errorf("failed to get option \"%s\": %v", option, err)
-		log.Println(err)
 		return nil, err
 	}
 
 	if !gapsVal.Set {
 		errorText := fmt.Sprintf("value \"%s\" is unset", option)
-		log.Println(errorText)
 		return nil, errors.New(errorText)
 	}
 
 	if gapsVal.Custom == "" {
 		errorText := fmt.Sprintf("value \"%s\" is empty", option)
-		log.Println(errorText)
 		return nil, errors.New(errorText)
 	}
 
@@ -46,7 +42,6 @@ func GetGap() ([]int, error) {
 		intValue, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			err = fmt.Errorf("failed to convert \"%s\" to int: %v", value, err)
-			log.Println(err)
 			return nil, err
 		}
 
@@ -56,20 +51,24 @@ func GetGap() ([]int, error) {
 	return outValues, nil
 }
 
-func GapChangeEvent(handler func(gap int)) {
-	var preGap int
+func GapChangeEvent(handler func(gap []int)) {
+	preGaps, err := GetGap()
+	if err != nil {
+		return
+	}
+
 	ipc.AddEventListener("configreloaded", func(e string) {
 		gaps, err := GetGap()
 		if err != nil {
-			log.Println("Reading gap error", err)
 			return
 		}
 
-		if gaps[0] == preGap {
-			return
+		for i, gap := range gaps {
+			if gap != preGaps[i] {
+				preGaps = gaps
+				handler(gaps)
+				return
+			}
 		}
-
-		preGap = gaps[0]
-		handler(gaps[0])
 	}, true)
 }

@@ -2,7 +2,6 @@ package desktop
 
 import (
 	"fmt"
-	"log"
 	"os/exec"
 	"strings"
 )
@@ -23,13 +22,12 @@ var desktopPlaceholders = map[string]bool{
 	"%m": true,
 }
 
-func Launch(command string) {
+func Launch(command string) error {
 	cmd := exec.Command("sh", "-c", command)
-	log.Printf("Launching command: %s\n", command)
 
-	if err := cmd.Start(); err != nil {
-		log.Printf("Unable to launch command: %s, error: %v\n", command, err)
-	}
+	err := cmd.Start()
+
+	return fmt.Errorf("unable to launch %s: %v", command, err)
 }
 
 func CleanExec(execLine string) (string, error) {

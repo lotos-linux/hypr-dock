@@ -1,6 +1,10 @@
 package itemsctl
 
-import "hypr-dock/internal/item"
+import (
+	"errors"
+	"hypr-dock/internal/item"
+	"hypr-dock/pkg/ipc"
+)
 
 type List struct {
 	list map[string]*item.Item
@@ -30,4 +34,16 @@ func (l *List) Remove(className string) {
 
 func (l *List) Len() int {
 	return len(l.list)
+}
+
+func (l *List) SearchWindow(address string) (*item.Item, *ipc.Client, error) {
+	for _, item := range l.list {
+		win, exist := item.Windows[address]
+		if exist {
+			return item, win, nil
+		}
+	}
+
+	err := errors.New("Window not found: " + address)
+	return nil, nil, err
 }

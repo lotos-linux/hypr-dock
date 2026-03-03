@@ -3,7 +3,6 @@ package desktop
 import (
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 )
 
@@ -50,31 +49,62 @@ func SearchDesktopFile(className string) string {
 }
 
 func GetAppDirs() []string {
-	var dirs []string
-	xdgDataDirs := ""
+	home, _ := os.UserHomeDir()
 
-	home := os.Getenv("HOME")
-	xdgDataHome := os.Getenv("XDG_DATA_HOME")
-	if os.Getenv("XDG_DATA_DIRS") != "" {
-		xdgDataDirs = os.Getenv("XDG_DATA_DIRS")
-	} else {
-		xdgDataDirs = "/usr/local/share/:/usr/share/"
-	}
-	if xdgDataHome != "" {
-		dirs = append(dirs, filepath.Join(xdgDataHome, "applications"))
-	} else if home != "" {
-		dirs = append(dirs, filepath.Join(home, ".local/share/applications"))
-	}
-	for _, d := range strings.Split(xdgDataDirs, ":") {
-		dirs = append(dirs, filepath.Join(d, "applications"))
-	}
-	flatpakDirs := []string{filepath.Join(home, ".local/share/flatpak/exports/share/applications"),
-		"/var/lib/flatpak/exports/share/applications"}
+	res := []string{
+		// dock custom apps
+		filepath.Join(home, ".local/share/hypr-dock/applications"),
 
-	for _, d := range flatpakDirs {
-		if !slices.Contains(dirs, d) {
-			dirs = append(dirs, d)
+		// user local apps
+		filepath.Join(os.Getenv("XDG_DATA_HOME"), "applications"),
+		filepath.Join(home, ".local/share/applications"),
+
+		// flatpak
+		filepath.Join(home, ".local/share/flatpak/exports/share/applications"),
+		"/var/lib/flatpak/exports/share/applications",
+
+		// system
+		"/usr/local/share/",
+		"/usr/share/",
+	}
+
+	// XDG standart
+	for _, dir := range strings.Split(os.Getenv("XDG_DATA_DIRS"), ":") {
+		res = append(res, filepath.Join(dir, "applications"))
+	}
+
+	return ProcessDirectories(res)
+}
+
+func ProcessDirectories(paths []string) []string {
+	uniquePaths := make(map[string]bool)
+	var result []string
+
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+
+		path = filepath.Clean(path)
+
+		if !filepath.IsAbs(path) {
+			continue
+		}
+
+		fileInfo, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+
+		if !fileInfo.IsDir() {
+			continue
+		}
+
+		if !uniquePaths[path] {
+			uniquePaths[path] = true
+			result = append(result, path)
 		}
 	}
-	return dirs
+
+	return result
 }

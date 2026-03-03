@@ -8,11 +8,15 @@ import (
 	"hypr-dock/internal/pvwidget"
 	"hypr-dock/internal/settings"
 	"hypr-dock/pkg/ipc"
-	"log"
+
+	// "log"
+
+	// "log"
 
 	"github.com/gotk3/gotk3/gdk"
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
+	"github.com/hashicorp/go-hclog"
 )
 
 type PV struct {
@@ -22,49 +26,102 @@ type PV struct {
 	hideTimer *timer.Timer
 	moveTimer *timer.Timer
 
-	className string
-	popup     *popup.Popup
+	className    string
+	preClassName string
+
+	popup    *popup.Popup
+	widget   *pvwidget.Widget
+	settings *settings.Settings
 
 	onEnter func(w *gtk.Window, e *gdk.Event)
 	onLeave func(w *gtk.Window, e *gdk.Event)
 	onEmpty func()
+
+	log hclog.Logger
 }
 
-func New(settings settings.Settings) *PV {
+func New(settings *settings.Settings, log hclog.Logger) *PV {
 	return &PV{
-		className: "90348d332fvecs324csd4",
+		className:    "90348d332fvecs324csd4",
+		preClassName: "",
 
 		showTimer: timer.New(),
 		hideTimer: timer.New(),
 		moveTimer: timer.New(),
 
-		onEmpty: func() { log.Printf("Debug: all window closed") },
+		onEmpty: func() { log.Debug("all window closed") },
 
-		popup: popup.New(),
+		popup:    popup.New(),
+		settings: settings,
+
+		log: log,
 	}
 }
 
-func (pv *PV) Show(item *item.Item, settings settings.Settings) {
+func (pv *PV) SmartOpen(item *item.Item) {
+	if len(item.Windows) == 0 {
+		return
+	}
+
+	pv.hideTimer.Stop()
+
+	if pv.GetActive() {
+		pv.moveTimer.Stop()
+		pv.moveTimer.Run(pv.settings.Preview.MoveDelay, func() { pv.Change(item) })
+		return
+	}
+
+	if !pv.GetActive() {
+		pv.showTimer.Run(pv.settings.Preview.ShowDelay, func() { pv.Show(item) })
+	}
+}
+
+func (pv *PV) SmartHide(item *item.Item) {
+	if len(item.Windows) == 0 {
+		return
+	}
+
+	pv.showTimer.Stop()
+	if pv.GetActive() {
+		pv.hideTimer.Run(pv.settings.Preview.HideDelay, pv.Hide)
+	}
+}
+
+func (pv *PV) Show(item *item.Item) {
+	if pv.active {
+		return
+	}
+
+	pv.preClassName = pv.className
+	pv.className = item.ClassName
+
 	glib.IdleAdd(func() {
-		pv.show(item, settings)
+		pv.show(item)
 	})
 	pv.SetActive(true)
 }
 
-func (pv *PV) Change(item *item.Item, settings settings.Settings) {
+func (pv *PV) Change(item *item.Item) {
+	pv.preClassName = pv.className
+	pv.className = item.ClassName
+
 	glib.IdleAdd(func() {
-		pv.change(item, settings)
+		pv.change(item)
 	})
 }
 
 func (pv *PV) Hide() {
+	if !pv.active {
+		return
+	}
+
 	glib.IdleAdd(func() {
 		pv.hide()
 	})
 	pv.SetActive(false)
 }
 
-func (pv *PV) show(item *item.Item, settings settings.Settings) {
+func (pv *PV) show(item *item.Item) {
 	if pv == nil {
 		fmt.Printf("Debug: pv is nil")
 		return
@@ -76,18 +133,18 @@ func (pv *PV) show(item *item.Item, settings settings.Settings) {
 	}
 
 	// widget settings
-	widget, err := pvwidget.New(item, settings)
+	widget, err := pvwidget.New(item, pv.settings, pv.log)
 	if err != nil {
-		log.Println(err)
+		pv.log.Error("Unable to create preview widget", "error", err)
 		return
 	}
 
 	widget.OnResize(func(w, h int) {
-		pv.resize(item, settings, w, h)
+		pv.resize(item, w, h)
 	})
 
 	widget.OnClick(func(c *ipc.Client) {
-		log.Printf("Debug: %s window focused (%s)", c.Title, c.Address)
+		pv.log.Debug("Window focused", "window-title", c.Title, "window-address", c.Address)
 
 		pv.showTimer.Stop()
 		pv.Hide()
@@ -101,25 +158,29 @@ func (pv *PV) show(item *item.Item, settings settings.Settings) {
 
 	widget.OnReady(func(w, h int) {
 		pv.popup.SetWinCallBack(func(window *gtk.Window) error {
-			window.SetSizeRequest(-1, h+5)
-			return pv.popupWinSet(settings, window)
+			return pv.popupWinSet(window)
 		})
 
-		target, orig := prepareCord(w, h, item, settings)
+		target, orig := pv.prepareCord(w, h, item)
 		if orig.Monitor != nil {
 			pv.popup.SetMonitor(orig.Monitor)
 		}
 
+		pv.popup.Set(widget)
 		err := pv.popup.Open(target.x, target.y, target.anchorX, target.anchorY)
 		if err != nil {
-			log.Println("Error: faild open preview popup:", err)
+			pv.log.Error("Failed to open preview popup", "error", err)
 		}
 	})
 
-	pv.popup.Set(widget)
+	pv.widget = widget
 }
 
-func (pv *PV) change(item *item.Item, settings settings.Settings) {
+func (pv *PV) change(item *item.Item) {
+	if pv.widget != nil && pv.widget.GetClass() == pv.className {
+		return
+	}
+
 	if pv == nil {
 		fmt.Printf("Debug: pv is nil")
 		return
@@ -131,18 +192,18 @@ func (pv *PV) change(item *item.Item, settings settings.Settings) {
 	}
 
 	// widget recreate
-	widget, err := pvwidget.New(item, settings)
+	widget, err := pvwidget.New(item, pv.settings, pv.log)
 	if err != nil {
-		log.Println(err)
+		pv.log.Error("Unable to create preview widget", "error", err)
 		return
 	}
 
 	widget.OnResize(func(w, h int) {
-		pv.resize(item, settings, w, h)
+		pv.resize(item, w, h)
 	})
 
 	widget.OnClick(func(c *ipc.Client) {
-		log.Printf("Debug: %s window focused (%s)", c.Title, c.Address)
+		pv.log.Debug("Window focused", "window-title", c.Title, "window-address", c.Address)
 
 		pv.showTimer.Stop()
 		pv.Hide()
@@ -155,26 +216,35 @@ func (pv *PV) change(item *item.Item, settings settings.Settings) {
 	})
 
 	widget.OnReady(func(w, h int) {
-		target, _ := prepareCord(w, h, item, settings)
+		pv.popup.SetWinMoveCallBack(func(window *gtk.Window) error {
+			window.Resize(w, h+5)
+			return nil
+		})
+
+		target, _ := pv.prepareCord(w, h, item)
+		pv.popup.Set(widget)
 		pv.popup.Move(target.x, target.y)
 	})
 
-	pv.popup.Set(widget)
+	pv.widget = widget
 }
 
 func (pv *PV) hide() {
 	pv.popup.Close()
 }
 
-func (pv *PV) popupWinSet(settings settings.Settings, w *gtk.Window) error {
+func (pv *PV) popupWinSet(w *gtk.Window) error {
 	w.Connect("enter-notify-event", func(w *gtk.Window, e *gdk.Event) {
 		pv.hideTimer.Stop()
+
+		if pv.moveTimer.IsRunning() {
+			pv.moveTimer.Stop()
+			pv.className = pv.preClassName
+		}
 
 		if pv.onEnter != nil {
 			pv.onEnter(w, e)
 		}
-
-		// ipc.DispatchEvent("hd>>pv-pointer-enter")
 	})
 	w.Connect("leave-notify-event", func(w *gtk.Window, e *gdk.Event) {
 		event := gdk.EventCrossingNewFromEvent(e)
@@ -183,32 +253,30 @@ func (pv *PV) popupWinSet(settings settings.Settings, w *gtk.Window) error {
 		if !isInWindow {
 			return
 		}
-		pv.hideTimer.Run(settings.PreviewAdvanced.HideDelay, pv.Hide)
+		pv.hideTimer.Run(pv.settings.Preview.HideDelay, pv.Hide)
 
 		if pv.onLeave != nil {
 			pv.onLeave(w, e)
 		}
-
-		// ipc.DispatchEvent("hd>>pv-pointer-leave")
 	})
 	return nil
 }
 
-func (pv *PV) resize(item *item.Item, settings settings.Settings, w, h int) {
-	horizontal := settings.Position == "top" || settings.Position == "bottom"
+func (pv *PV) resize(item *item.Item, w, h int) {
+	horizontal := pv.settings.Position == "top" || pv.settings.Position == "bottom"
 
 	if horizontal {
 		// get item buttom cord
-		cord, err := item.GetCord(settings)
+		cord, err := item.GetCord()
 		if err != nil {
-			log.Println(err)
+			pv.log.Error("Failed to get item button cords", "error", err)
 		}
 
 		// move
 		pv.popup.Move(cord.CX-w/2, cord.CY)
 
 		// hide if mouse not in popup (if in popup, enter pointer evets stoped timer)
-		pv.hideTimer.Run(settings.PreviewAdvanced.HideDelay, pv.Hide)
+		pv.hideTimer.Run(pv.settings.Preview.HideDelay, pv.Hide)
 	}
 }
 
@@ -244,29 +312,21 @@ func (pv *PV) GetMoveTimer() *timer.Timer {
 	return pv.moveTimer
 }
 
-func (pv *PV) HasClassChanged(className string) bool {
-	return pv.className != className
-}
-
-func (pv *PV) SetCurrentClass(className string) {
-	pv.className = className
-}
-
 type popupTarget struct {
 	x, y             int
 	anchorX, anchorY string
 }
 
-func prepareCord(w, h int, item *item.Item, settings settings.Settings) (target popupTarget, orig *item.Position) {
-	orig, err := item.GetCord(settings)
+func (pv *PV) prepareCord(w, h int, item *item.Item) (target popupTarget, orig *item.Position) {
+	orig, err := item.GetCord()
 	if err != nil {
-		log.Println(err)
+		pv.log.Error("Failed to get item button cords", "error", err)
 	}
 
 	target = popupTarget{}
 
 	// Anchor
-	switch settings.Position {
+	switch pv.settings.Position {
 	case "bottom":
 		target.anchorX = "left"
 		target.anchorY = "bottom"
@@ -281,7 +341,7 @@ func prepareCord(w, h int, item *item.Item, settings settings.Settings) (target 
 	}
 
 	// Popup center
-	switch settings.Position {
+	switch pv.settings.Position {
 	case "bottom", "top":
 		target.x = orig.CX - w/2
 		target.y = orig.CY

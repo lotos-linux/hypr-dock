@@ -15,9 +15,10 @@ type Stream struct {
 	address string
 	handle  uint64
 
-	size       *Size
-	scaleMode  *ScaleMode
-	interpType gdk.InterpType
+	size        *Size
+	scaleMode   *ScaleMode
+	interpType  gdk.InterpType
+	scaleFactor int
 
 	effects map[string]func(p *gdk.Pixbuf) error
 	masks   map[string]func(p *gdk.Pixbuf) error
@@ -25,6 +26,8 @@ type Stream struct {
 	readyHandler func(*Size)
 	frameHandler func(*Size)
 	errorHandler func(error)
+
+	log hclog.Logger
 
 	*gtk.Image
 }
@@ -43,8 +46,8 @@ type Cord struct {
 	X, Y int
 }
 
-func StreamAndStart(address string, fps int) (*Stream, error) {
-	s, err := StreamNew(address)
+func StreamAndStart(address string, fps int, log hclog.Logger) (*Stream, error) {
+	s, err := StreamNew(address, log)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +60,7 @@ func StreamAndStart(address string, fps int) (*Stream, error) {
 	return s, nil
 }
 
-func StreamNew(address string) (*Stream, error) {
+func StreamNew(address string, log hclog.Logger) (*Stream, error) {
 	handle, err := getHandle(address)
 	if err != nil {
 		return nil, err
@@ -72,9 +75,10 @@ func StreamNew(address string) (*Stream, error) {
 		address: address,
 		handle:  handle,
 
-		size:       nil,
-		scaleMode:  nil,
-		interpType: gdk.INTERP_BILINEAR,
+		size:        nil,
+		scaleMode:   nil,
+		interpType:  gdk.INTERP_BILINEAR,
+		scaleFactor: widget.GetScaleFactor(),
 
 		effects: make(map[string]func(p *gdk.Pixbuf) error, 0),
 		masks:   make(map[string]func(p *gdk.Pixbuf) error, 0),
@@ -82,15 +86,17 @@ func StreamNew(address string) (*Stream, error) {
 		readyHandler: nil,
 		frameHandler: nil,
 		errorHandler: func(err error) {
-			log.Println(err)
+			log.Error("Hysc error", "error", err)
 		},
+
+		log: log,
 
 		Image: widget,
 	}, nil
 }
 
 func (s *Stream) Start(fps int, buferSize ...int) error {
-	app, err := wl.NewApp(hclog.Default())
+	app, err := wl.NewApp(s.log)
 	if err != nil {
 		return fmt.Errorf("failed to wayland connection: %v", err)
 	}
@@ -147,11 +153,18 @@ func (s *Stream) Start(fps int, buferSize ...int) error {
 				}
 
 				size := &Size{
-					W: pixbuf.GetWidth(),
-					H: pixbuf.GetHeight(),
+					W: pixbuf.GetWidth() / s.scaleFactor,
+					H: pixbuf.GetHeight() / s.scaleFactor,
 				}
 
-				s.SetFromPixbuf(pixbuf)
+				surface, err := gdk.CairoSurfaceCreateFromPixbuf(pixbuf, s.scaleFactor, nil)
+				if err != nil {
+					s.errorHandler(err)
+					return
+				}
+
+				s.SetFromSurface(surface)
+				s.SetPixelSize(size.W)
 
 				if s.size == nil && s.readyHandler != nil {
 					s.readyHandler(size)
@@ -178,7 +191,7 @@ func (s *Stream) Start(fps int, buferSize ...int) error {
 func (s *Stream) CaptureFrame() error {
 	log.Printf("DEBUG HYSC: Starting CaptureFrame for handle %d", s.handle)
 
-	app, err := wl.NewApp(hclog.Default())
+	app, err := wl.NewApp(s.log)
 	if err != nil {
 		log.Printf("ERROR HYSC: Wayland connection failed: %v", err)
 		return fmt.Errorf("failed to wayland connection: %v", err)
@@ -222,11 +235,18 @@ func (s *Stream) CaptureFrame() error {
 	}
 
 	size := &Size{
-		W: pixbuf.GetWidth(),
-		H: pixbuf.GetHeight(),
+		W: pixbuf.GetWidth() / s.scaleFactor,
+		H: pixbuf.GetHeight() / s.scaleFactor,
 	}
 	glib.IdleAdd(func() {
-		s.SetFromPixbuf(pixbuf)
+		surface, err := gdk.CairoSurfaceCreateFromPixbuf(pixbuf, s.scaleFactor, nil)
+		if err != nil {
+			s.errorHandler(err)
+			return
+		}
+
+		s.SetFromSurface(surface)
+		s.SetPixelSize(size.W)
 
 		log.Printf("DEBUG HYSC: Calling readyHandler with size %dx%d", size.W, size.H)
 		if s.readyHandler != nil {
@@ -283,11 +303,18 @@ func (s *Stream) CaptureFrameWithApp(app *wl.App) error {
 	}
 
 	size := &Size{
-		W: pixbuf.GetWidth(),
-		H: pixbuf.GetHeight(),
+		W: pixbuf.GetWidth() / s.scaleFactor,
+		H: pixbuf.GetHeight() / s.scaleFactor,
 	}
 	glib.IdleAdd(func() {
-		s.SetFromPixbuf(pixbuf)
+		surface, err := gdk.CairoSurfaceCreateFromPixbuf(pixbuf, s.scaleFactor, nil)
+		if err != nil {
+			s.errorHandler(err)
+			return
+		}
+
+		s.SetFromSurface(surface)
+		s.SetPixelSize(size.W)
 
 		log.Printf("DEBUG HYSC: Calling readyHandler with size %dx%d", size.W, size.H)
 		if s.readyHandler != nil {
@@ -319,6 +346,10 @@ func (s *Stream) SetFixedSize(width int, height int) {
 		scaleW: width,
 		scaleH: height,
 	}
+}
+
+func (s *Stream) SetScaleFactor(factor int) {
+	s.scaleFactor = factor
 }
 
 func (s *Stream) ResetSize() {
@@ -410,8 +441,8 @@ func (s *Stream) scale(pixbuf *gdk.Pixbuf) (*gdk.Pixbuf, error) {
 	// fixed dimensions
 	if s.scaleMode.scaleH > 0 && s.scaleMode.scaleW > 0 {
 		return pixbuf.ScaleSimple(
-			s.scaleMode.scaleW,
-			s.scaleMode.scaleH,
+			s.scaleMode.scaleW*s.scaleFactor,
+			s.scaleMode.scaleH*s.scaleFactor,
 			s.interpType,
 		)
 	}
@@ -423,8 +454,8 @@ func (s *Stream) scale(pixbuf *gdk.Pixbuf) (*gdk.Pixbuf, error) {
 		newWidth := int(float64(newHeight) * ratio)
 
 		return pixbuf.ScaleSimple(
-			newWidth,
-			newHeight,
+			newWidth*s.scaleFactor,
+			newHeight*s.scaleFactor,
 			s.interpType,
 		)
 	}
@@ -436,8 +467,8 @@ func (s *Stream) scale(pixbuf *gdk.Pixbuf) (*gdk.Pixbuf, error) {
 		newHeight := int(float64(newWidth) * ratio)
 
 		return pixbuf.ScaleSimple(
-			newWidth,
-			newHeight,
+			newWidth*s.scaleFactor,
+			newHeight*s.scaleFactor,
 			s.interpType,
 		)
 	}
@@ -449,8 +480,8 @@ func (s *Stream) scale(pixbuf *gdk.Pixbuf) (*gdk.Pixbuf, error) {
 		newHeight := int(float64(origHeight) * factor)
 
 		return pixbuf.ScaleSimple(
-			newWidth,
-			newHeight,
+			newWidth*s.scaleFactor,
+			newHeight*s.scaleFactor,
 			s.interpType,
 		)
 	}

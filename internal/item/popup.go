@@ -3,26 +3,23 @@ package item
 import (
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/gotk3/gotk3/gtk"
 	"github.com/gotk3/gotk3/pango"
+	"github.com/hashicorp/go-hclog"
 
 	"hypr-dock/internal/desktop"
 	"hypr-dock/internal/pkg/utils"
-	"hypr-dock/internal/settings"
 	"hypr-dock/pkg/ipc"
 )
 
-func (item *Item) WindowsMenu() (*gtk.Menu, error) {
+func (i *Item) WindowsMenu() (*gtk.Menu, error) {
 	menu, err := gtk.MenuNew()
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
 
-	desktopData := desktop.New(item.ClassName)
-
-	AddWindowsItemToMenu(menu, item.Windows, desktopData)
+	AddWindowsItemToMenu(menu, i.Windows, i.App, i.log)
 
 	menu.SetName("windows-menu")
 	menu.ShowAll()
@@ -30,23 +27,23 @@ func (item *Item) WindowsMenu() (*gtk.Menu, error) {
 	return menu, nil
 }
 
-func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
+func (i *Item) ContextMenu() (*gtk.Menu, error) {
 	menu, err := gtk.MenuNew()
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
 
-	app := item.App
+	app := i.App
 	actions := app.GetActions()
 
-	AddWindowsItemToMenu(menu, item.Windows, app)
+	AddWindowsItemToMenu(menu, i.Windows, app, i.log)
 
-	if len(item.Windows) != 0 {
+	if len(i.Windows) != 0 {
 		separator, err := gtk.SeparatorMenuItemNew()
 		if err == nil {
 			menu.Append(separator)
 		} else {
-			log.Println(err)
+			i.log.Error("Unable to create gtk separator", "error", err)
 		}
 	}
 
@@ -68,7 +65,7 @@ func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
 			if err == nil {
 				menu.Append(actionMenuItem)
 			} else {
-				log.Println(err)
+				i.log.Error("Unable to create context item", "error", err)
 			}
 		}
 
@@ -76,26 +73,26 @@ func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
 		if err == nil {
 			menu.Append(separator)
 		} else {
-			log.Println(err)
+			i.log.Error("Unable to create gtk separator", "error", err)
 		}
 	}
 
-	launchMenuItem, err := BuildLaunchMenuItem(item)
+	launchMenuItem, err := BuildLaunchMenuItem(i)
 	if err == nil {
 		menu.Append(launchMenuItem)
 	} else {
-		log.Println(err)
+		i.log.Error("Unable to create launch menu item", "error", err)
 	}
 
-	pinMenuItem, err := BuildPinMenuItem(item, settings)
+	pinMenuItem, err := BuildPinMenuItem(i)
 	if err == nil {
 		menu.Append(pinMenuItem)
 	} else {
-		log.Println(err)
+		i.log.Error("Unable to create pin menu item", "error", err)
 	}
 
-	if len(item.Windows) == 1 {
-		client, ok := utils.GetSingleValue(item.Windows)
+	if len(i.Windows) == 1 {
+		client, ok := utils.GetSingleValue(i.Windows)
 		if ok {
 			closeMenuItem, err := BuildContextItem("Close", func() {
 				ipc.Hyprctl("dispatch closewindow address:" + client.Address)
@@ -103,7 +100,7 @@ func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
 			if err == nil {
 				menu.Append(closeMenuItem)
 			} else {
-				log.Println(err)
+				i.log.Error("Unable to create close menu item", "error", err)
 			}
 		}
 	}
@@ -114,14 +111,14 @@ func (item *Item) ContextMenu(settings settings.Settings) (*gtk.Menu, error) {
 	return menu, nil
 }
 
-func AddWindowsItemToMenu(menu *gtk.Menu, windows map[string]*ipc.Client, app *desktop.App) {
+func AddWindowsItemToMenu(menu *gtk.Menu, windows map[string]*ipc.Client, app *desktop.App, log hclog.Logger) {
 	for _, window := range windows {
 		menuItem, err := BuildContextItem(window.Title, func() {
 			go ipc.Hyprctl("dispatch focuswindow address:" + window.Address)
 		}, app.GetIcon())
 
 		if err != nil {
-			log.Println(err)
+			log.Error("Unable to create launch menu item", "error", err)
 			continue
 		}
 
@@ -154,14 +151,14 @@ func BuildLaunchMenuItem(item *Item) (*gtk.MenuItem, error) {
 	return launchMenuItem, nil
 }
 
-func BuildPinMenuItem(item *Item, settings settings.Settings) (*gtk.MenuItem, error) {
+func BuildPinMenuItem(item *Item) (*gtk.MenuItem, error) {
 	labelText := "Pin"
 	if item.IsPinned() {
 		labelText = "Unpin"
 	}
 
 	menuItem, err := BuildContextItem(labelText, func() {
-		item.TogglePin(settings)
+		item.TogglePin()
 	})
 
 	if err != nil {

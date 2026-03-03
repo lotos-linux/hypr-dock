@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -378,20 +379,21 @@ func (a *App) createShmPool(size int32) (*shmPool, error) {
 }
 
 func (a *App) roundTrip() error {
+	var dispatchMutex sync.Mutex
+
 	cb, err := a.display.Sync()
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := cb.Destroy(); err != nil {
-			a.log.Error(`failed destroying callback`, `err`, err)
-		}
-	}()
+	defer cb.Destroy()
 
 	done := make(chan struct{})
 	cb.SetDoneHandler(func(_ client.CallbackDoneEvent) {
 		close(done)
 	})
+
+	dispatchMutex.Lock()
+	defer dispatchMutex.Unlock()
 
 	for {
 		select {

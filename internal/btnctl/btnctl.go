@@ -12,22 +12,26 @@ import (
 )
 
 func Dispatch(item *item.Item, appState *state.State) {
-	ctrl := defaultcontrol.New(item, appState)
+	settings := appState.GetSettings()
+	ctrl := defaultcontrol.New(item, settings, appState.GetLogger())
 
-	if appState.GetSettings().Preview != "none" {
+	// preview
+	if appState.GetSettings().Preview.Mode != "none" {
 		previewControl(item, ctrl, appState)
 		return
 	}
+
+	// default
+	ctrl.OnContextClose(func() {
+		appState.GetLayerctl().SendUnfocus()
+	})
 
 	ctrl.Init()
 }
 
 func previewControl(item *item.Item, ctrl *defaultcontrol.Control, appState *state.State) {
-	settings := appState.GetSettings()
 	pv := appState.GetPV()
 	showTimer := pv.GetShowTimer()
-	hideTimer := pv.GetHideTimer()
-	moveTimer := pv.GetMoveTimer()
 
 	// clickes
 	ctrl.ResetSingle(func() {
@@ -44,8 +48,7 @@ func previewControl(item *item.Item, ctrl *defaultcontrol.Control, appState *sta
 
 	ctrl.ResetMulti(func() {
 		if !pv.GetActive() {
-			pv.Show(item, settings)
-			pv.SetCurrentClass(item.ClassName)
+			pv.Show(item)
 		}
 	})
 
@@ -60,36 +63,11 @@ func previewControl(item *item.Item, ctrl *defaultcontrol.Control, appState *sta
 
 	// hover
 	item.Button.Connect("enter-notify-event", func() {
-		instances := len(item.Windows)
-		if instances == 0 {
-			return
-		}
-
-		hideTimer.Stop()
-
-		if pv.GetActive() && pv.HasClassChanged(item.ClassName) {
-			moveTimer.Stop()
-			moveTimer.Run(settings.PreviewAdvanced.MoveDelay, func() { pv.Change(item, settings) })
-			pv.SetCurrentClass(item.ClassName)
-			return
-		}
-
-		if !pv.GetActive() {
-			showTimer.Run(settings.PreviewAdvanced.ShowDelay, func() { pv.Show(item, settings) })
-			pv.SetCurrentClass(item.ClassName)
-		}
+		pv.SmartOpen(item)
 	})
 
 	item.Button.Connect("leave-notify-event", func() {
-		instances := len(item.Windows)
-		if instances == 0 {
-			return
-		}
-
-		showTimer.Stop()
-		if pv.GetActive() {
-			hideTimer.Run(settings.PreviewAdvanced.HideDelay, pv.Hide)
-		}
+		pv.SmartHide(item)
 	})
 
 	// send to host control signal for auto mode

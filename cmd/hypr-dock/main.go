@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"syscall"
@@ -13,6 +12,7 @@ import (
 	"hypr-dock/internal/app"
 	"hypr-dock/internal/hypr/hyprEvents"
 	"hypr-dock/internal/layering"
+	"hypr-dock/internal/pkg/flags"
 	"hypr-dock/internal/pkg/signals"
 	"hypr-dock/internal/pkg/utils"
 	"hypr-dock/internal/settings"
@@ -35,19 +35,25 @@ func main() {
 	}
 	defer lockFile.Close()
 
+	// flags
+	flags := flags.Get()
+
+	logger := utils.СreateLogger(flags.LogLevel)
+
 	// window build
-	settings, err := settings.Init()
+	settings, err := settings.Init(flags, logger)
 	if err != nil {
-		log.Println("Settings init error: ", err)
+		logger.Error("Settings init error:", "err", err)
 	}
 
 	gtk.Init(nil)
 
-	appState := state.New(settings)
+	appState := state.New(settings, logger)
 
 	window, err := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	if err != nil {
-		log.Fatal("Unable to create window:", err)
+		logger.Error("Unable to create window:", "err", err)
+		os.Exit(2)
 	}
 	appState.SetWindow(window)
 
@@ -56,9 +62,9 @@ func main() {
 	layerctl := layering.NewInit(window, settings)
 	appState.SetLayerctl(layerctl)
 
-	err = utils.AddCssProvider(settings.CurrentThemeStylePath)
+	err = utils.AddCssProvider(settings.ThemeStyle)
 	if err != nil {
-		log.Println("CSS file not found, the default GTK theme is running!\n", err)
+		logger.Warn("CSS file not found, the default GTK theme is running!", "err", err)
 	}
 
 	app := app.BuildApp(appState)

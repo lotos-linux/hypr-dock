@@ -1,105 +1,166 @@
 package settings
 
 import (
-	"hypr-dock/internal/pkg/cfg"
+	"fmt"
+	"hypr-dock/internal/pkg/conf"
 	"hypr-dock/internal/pkg/flags"
-	"hypr-dock/internal/pkg/utils"
-	"log"
+	"hypr-dock/internal/pkg/pinned"
+	"io"
+
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/hashicorp/go-hclog"
 )
 
+const APP_NAME = "hypr-dock"
+const LOCAL = ".local/share"
+
 type Settings struct {
-	cfg.Config
-	ConfigDir              string
-	ConfigPath             string
-	PinnedPath             string
-	ThemesDir              string
-	CurrentThemeDir        string
-	CurrentThemeConfigPath string
-	CurrentThemeStylePath  string
-	PinnedApps             []string
+	*conf.Config
+	LocalDir   string
+	ConfigDir  string
+	ConfigPath string
+	PinnedPath string
+	ThemesDir  string
+	ThemeStyle string
+	PinnedApps []string
 }
 
-func Init() (Settings, error) {
-	const DefaultTheme = "lotos"
+func Init(flags flags.Flags, log hclog.Logger) (*Settings, error) {
+	var err error
 
-	var settings Settings
+	// get local app dir
+	localDir := filepath.Join(GetHome(), LOCAL, APP_NAME)
 
-	flags := flags.Get(DefaultTheme)
-
-	if flags.DevMode {
-		settings.ConfigDir = setConfigDir("dev")
-	} else {
-		settings.ConfigDir = setConfigDir("normal")
+	// read pinned file
+	pinnedPath := filepath.Join(localDir, "pinned")
+	pinnedApps, err := pinned.Open(pinnedPath)
+	if err != nil {
+		log.Error("Failed to create/write pinned list", "file", pinnedPath, "error", err)
 	}
 
-	settings.PinnedPath = filepath.Join(settings.ConfigDir, "pinned.json")
-	settings.PinnedApps = cfg.ReadItemList(settings.PinnedPath)
-	defaultConfigPath := filepath.Join(settings.ConfigDir, "config.jsonc")
+	// main configs dir
+	configDir, isCreate, err := GetConfigDir(flags.DevMode)
+	log.Debug("Config dir init", "path", configDir, "created", isCreate, "error", err)
 
-	if flags.Config == "~/.config/hypr-dock" {
-		settings.ConfigPath = defaultConfigPath
-	} else {
-		settings.ConfigPath = expandPath(flags.Config)
+	// main config file
+	configPath := filepath.Join(configDir, APP_NAME+".conf")
+	if flags.Config != "~/.config/hypr-dock" {
+		configPath = expand(flags.Config)
 	}
 
-	settings.Config = cfg.ReadConfig(settings.ConfigPath, settings.ThemesDir)
+	// themes dir
+	themesDir := filepath.Join(configDir, "themes")
 
-	settings.ThemesDir = filepath.Join(settings.ConfigDir, "themes")
-	settings.CurrentThemeDir = filepath.Join(settings.ThemesDir, settings.CurrentTheme)
+	// read main config and current theme config
+	config, err := conf.New(configPath, themesDir, log)
+	if err != nil {
+		log.Error("Confog faild", "error", err)
+	}
 
-	if !utils.FileExists(settings.CurrentThemeDir) {
-		log.Println("Current theme not found (", settings.CurrentTheme, "). Loading default theme")
+	// theme style file
+	themeStyle := filepath.Join(config.ThemeDir, "style.css")
 
-		if settings.CurrentTheme == DefaultTheme {
-			log.Println("Default theme not found")
+	return &Settings{
+		Config:     config,
+		LocalDir:   localDir,
+		ConfigDir:  configDir,
+		ConfigPath: configPath,
+		PinnedPath: pinnedPath,
+		ThemesDir:  themesDir,
+		ThemeStyle: themeStyle,
+		PinnedApps: pinnedApps,
+	}, nil
+}
+
+func GetConfigDir(dev bool) (string, bool, error) {
+	if !dev {
+		systemDir := filepath.Join("/etc", APP_NAME)
+		userDir := filepath.Join(GetHome(), ".config", APP_NAME)
+
+		exist, err := HasDir(userDir, systemDir)
+		if err != nil {
+			return "", false, err
 		}
 
-		settings.CurrentTheme = DefaultTheme
+		return userDir, exist, nil
 	}
 
-	settings.CurrentThemeStylePath = filepath.Join(settings.CurrentThemeDir, "style.css")
-	settings.CurrentThemeConfigPath = filepath.Join(settings.CurrentThemeDir, settings.CurrentTheme+".jsonc")
+	exe, _ := os.Executable()
+	exeDir := filepath.Dir(exe)
+	configs := filepath.Join(filepath.Dir(exeDir), "configs")
+	devDir := filepath.Join(configs, "dev")
+	def := filepath.Join(configs, "default")
 
-	themeConfig := cfg.ReadTheme(settings.CurrentThemeConfigPath, settings.Config)
-	if themeConfig != nil {
-		settings.Spacing = themeConfig.Spacing
-		settings.PreviewStyle = themeConfig.PreviewStyle
+	exist, err := HasDir(devDir, def)
+	if err != nil {
+		return "", false, err
 	}
 
-	return settings, nil
+	return devDir, exist, nil
 }
 
-func setConfigDir(mode string) string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal("Home dir: " + err.Error())
-	}
-
-	exePath, err := os.Executable()
-	if err != nil {
-		log.Fatal("Exe dir: " + err.Error())
-	}
-
-	exeDir := filepath.Dir(exePath)
-
-	runModes := map[string]func() string{
-		"normal": func() string {
-			return filepath.Join(homeDir, ".config/hypr-dock")
-		},
-		"dev": func() string {
-			return filepath.Join(filepath.Dir(exeDir), "configs")
-		},
-	}
-	return runModes[mode]()
-}
-
-func expandPath(path string) string {
+func expand(path string) string {
 	if strings.HasPrefix(path, "~/") {
 		home, _ := os.UserHomeDir()
 		return filepath.Join(home, path[2:])
 	}
 	return path
+}
+
+func GetHome() string {
+	home, _ := os.UserHomeDir()
+	return home
+}
+
+func HasDir(dir string, sourceDir string) (bool, error) {
+	if _, err := os.Stat(dir); err == nil {
+		return true, nil
+	}
+
+	if _, err := os.Stat(sourceDir); err != nil {
+		return false, fmt.Errorf("source directory does not exist: %w", err)
+	}
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return false, fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	return false, filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(sourceDir, path)
+		if err != nil {
+			return err
+		}
+
+		destPath := filepath.Join(dir, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(destPath, 0755)
+		}
+
+		return copyFile(path, destPath)
+	})
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	return err
 }

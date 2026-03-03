@@ -1,7 +1,8 @@
 package desktop
 
 import (
-	"log"
+	"fmt"
+	"hypr-dock/pkg/ini"
 	"strings"
 )
 
@@ -21,7 +22,7 @@ type Action struct {
 	icon string
 }
 
-func New(className string) *App {
+func New(className string) (*App, error) {
 	errData := &App{
 		name:         map[string]string{"": className},
 		comment:      map[string]string{"": ""},
@@ -32,37 +33,39 @@ func New(className string) *App {
 		raw:          make(map[string]map[string]string),
 	}
 
-	raw, err := Parse(SearchDesktopFile(className))
+	file := SearchDesktopFile(className)
+
+	raw, err := ini.GetMap(file, "Desktop Entry")
 	if err != nil {
-		return errData
+		return errData, err
 	}
 
-	general, exist := raw["desktop entry"]
+	general, exist := raw["Desktop Entry"]
 	if !exist {
-		return errData
+		return errData, fmt.Errorf("section \"%v\" not found in %s", "Desktop Entry", file)
 	}
 
-	name, ok := GetAllLocales(general, "name")
+	name, ok := GetAllLocales(general, "Name")
 	if !ok {
 		name = errData.name
 	}
 
-	comment, ok := GetAllLocales(general, "comment")
+	comment, ok := GetAllLocales(general, "Comment")
 	if !ok {
 		comment = errData.comment
 	}
 
-	icon, exist := general["icon"]
+	icon, exist := general["Icon"]
 	if !exist {
 		icon = errData.icon
 	}
 
-	exec, exist := general["exec"]
+	exec, exist := general["Exec"]
 	if !exist {
 		exec = errData.exec
 	}
 
-	singleWindowStr, exist := general["singlemainwindow"]
+	singleWindowStr, exist := general["SingleMainWindow"]
 	singleWindow := exist && singleWindowStr == "true"
 
 	actions := GetActions(raw)
@@ -75,7 +78,7 @@ func New(className string) *App {
 		singleWindow: singleWindow,
 		actions:      actions,
 		raw:          raw,
-	}
+	}, nil
 }
 
 func GetLocalizedValue(values map[string]string, lang string) string {
@@ -146,22 +149,21 @@ func (a *App) GetComment(lang ...string) string {
 	return GetLocalizedValue(a.comment, lang[0])
 }
 
-func (a *App) Run() {
-	run(a.exec)
+func (a *App) Run() error {
+	return run(a.exec)
 }
 
-func (a *Action) Run() {
-	run(a.exec)
+func (a *Action) Run() error {
+	return run(a.exec)
 }
 
-func run(cmd string) {
+func run(cmd string) error {
 	clean, err := CleanExec(cmd)
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
-	Launch(clean)
+	return Launch(clean)
 }
 
 func (a *Action) GetAllName() map[string]string {

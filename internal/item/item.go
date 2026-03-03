@@ -251,16 +251,6 @@ func appendInducator(parent *gtk.Box, child *gtk.Image, pos string) {
 	child.SetName("indicator")
 
 	switch pos {
-	case "left", "right":
-		buf := child.GetPixbuf()
-		newBuf, err := buf.RotateSimple(gdk.PIXBUF_ROTATE_COUNTERCLOCKWISE)
-		if err != nil {
-			return
-		}
-		child.SetFromPixbuf(newBuf)
-	}
-
-	switch pos {
 	case "left", "top":
 		parent.PackStart(child, false, false, 0)
 		parent.ReorderChild(child, 0)

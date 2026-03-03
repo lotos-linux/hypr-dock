@@ -37,7 +37,9 @@ func New(instances int, settings *settings.Settings, parent gtk.IWidget) (*gtk.I
 
 	selected := selectIndicatorFile(instances, available)
 	path := filepath.Join(settings.ThemeDir, "point", selected.FullName)
-	return utils.CreateImageWidthScale(path, settings.IconSize, parent, 0.56)
+
+	rotate := settings.Position == "left" || settings.Position == "right"
+	return utils.CreateImageWidthTransform(path, settings.IconSize, parent, 0.56, rotate)
 }
 
 // selectIndicatorFile chooses the appropriate indicator file based on instances count

@@ -9,21 +9,21 @@ import (
 	"github.com/pkg/errors"
 )
 
-func CreateImageWidthScale(source string, size int, parent gtk.IWidget, scaleFactor float64) (*gtk.Image, error) {
+func CreateImageWidthTransform(source string, size int, parent gtk.IWidget, scaleFactor float64, rotate bool) (*gtk.Image, error) {
 	scaleSize := int(math.Round(float64(size) * math.Max(scaleFactor, 0)))
 
-	return CreateImage(source, scaleSize, parent)
+	return CreateImage0(source, scaleSize, parent, rotate)
 }
 
 func CreateImage(source string, size int, parent gtk.IWidget) (*gtk.Image, error) {
-	image, err := CreateImage0(source, size, parent)
+	image, err := CreateImage0(source, size, parent, false)
 	if err == nil {
 		return image, nil
 	}
 	return CreateImage("image-missing", size, parent)
 }
 
-func CreateImage0(source string, size int, parent gtk.IWidget) (*gtk.Image, error) {
+func CreateImage0(source string, size int, parent gtk.IWidget, rotate bool) (*gtk.Image, error) {
 	w := parent.ToWidget()
 	var err error
 	var pixbuf *gdk.Pixbuf
@@ -39,6 +39,13 @@ func CreateImage0(source string, size int, parent gtk.IWidget) (*gtk.Image, erro
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	if rotate {
+		rotPixbuf, err := pixbuf.RotateSimple(gdk.PIXBUF_ROTATE_COUNTERCLOCKWISE)
+		if err == nil {
+			pixbuf = rotPixbuf
+		}
 	}
 
 	surface, err := gdk.CairoSurfaceCreateFromPixbuf(pixbuf, scaleFactor, nil)

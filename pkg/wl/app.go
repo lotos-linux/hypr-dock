@@ -201,17 +201,25 @@ OUTER:
 		return nil, err
 	}
 
-	if err := a.roundTrip(); err != nil {
-		return nil, err
+	// Actively dispatch events while waiting for the frame to be ready.
+	// The compositor sends the ready event asynchronously after copying
+	// the frame data, so we must keep dispatching to receive it.
+	timeout := time.After(2 * time.Second)
+	for {
+		select {
+		case <-ready:
+			goto frameReady
+		case err := <-failed:
+			return nil, err
+		case <-timeout:
+			return nil, fmt.Errorf("timeout waiting for frame ready")
+		default:
+			if err := a.display.Context().Dispatch(); err != nil {
+				return nil, fmt.Errorf("dispatch error while waiting for frame: %w", err)
+			}
+		}
 	}
-
-	select {
-	case <-ready:
-	case err := <-failed:
-		return nil, err
-	case <-time.After(500 * time.Millisecond):
-		return nil, fmt.Errorf("timeout waiting for frame ready")
-	}
+frameReady:
 
 	data := pool.Data()
 	img := image.NewNRGBA(image.Rect(0, 0, int(selected.Width), int(selected.Height)))

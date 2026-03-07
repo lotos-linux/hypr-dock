@@ -61,8 +61,12 @@ func GetAllLocales(m map[string]string, prefix string) (map[string]string, bool)
 	return result, true
 }
 
-func GetActions(raw map[string]map[string]string) []Action {
+func GetActions(raw map[string]map[string]string, lang ...string) []Action {
 	var actionsRes []Action
+	var locale string
+	if len(lang) == 1 {
+		locale = lang[0]
+	}
 
 	general, exist := raw["Desktop Entry"]
 	if !exist {
@@ -107,6 +111,8 @@ func GetActions(raw map[string]map[string]string) []Action {
 			name: name,
 			exec: exec,
 			icon: icon,
+
+			lang: locale,
 		})
 	}
 

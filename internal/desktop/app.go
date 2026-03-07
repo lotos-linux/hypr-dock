@@ -14,15 +14,24 @@ type App struct {
 	singleWindow bool
 	actions      []Action
 	raw          map[string]map[string]string
+
+	lang string
 }
 
 type Action struct {
 	name map[string]string
 	exec string
 	icon string
+
+	lang string
 }
 
-func New(className string) (*App, error) {
+func New(className string, lang ...string) (*App, error) {
+	var locale string
+	if len(lang) == 1 {
+		locale = lang[0]
+	}
+
 	errData := &App{
 		name:         map[string]string{"": className},
 		comment:      map[string]string{"": ""},
@@ -31,6 +40,8 @@ func New(className string) (*App, error) {
 		singleWindow: false,
 		actions:      []Action{},
 		raw:          make(map[string]map[string]string),
+
+		lang: locale,
 	}
 
 	file := SearchDesktopFile(className)
@@ -68,7 +79,7 @@ func New(className string) (*App, error) {
 	singleWindowStr, exist := general["SingleMainWindow"]
 	singleWindow := exist && singleWindowStr == "true"
 
-	actions := GetActions(raw)
+	actions := GetActions(raw, locale)
 
 	return &App{
 		name:         name,
@@ -78,6 +89,8 @@ func New(className string) (*App, error) {
 		singleWindow: singleWindow,
 		actions:      actions,
 		raw:          raw,
+
+		lang: locale,
 	}, nil
 }
 
@@ -135,18 +148,12 @@ func (a *App) GetRaw() map[string]map[string]string {
 	return a.raw
 }
 
-func (a *App) GetName(lang ...string) string {
-	if len(lang) < 1 {
-		return GetLocalizedValue(a.name, "")
-	}
-	return GetLocalizedValue(a.name, lang[0])
+func (a *App) GetName() string {
+	return GetLocalizedValue(a.name, a.lang)
 }
 
-func (a *App) GetComment(lang ...string) string {
-	if len(lang) < 1 {
-		return GetLocalizedValue(a.comment, "")
-	}
-	return GetLocalizedValue(a.comment, lang[0])
+func (a *App) GetComment() string {
+	return GetLocalizedValue(a.comment, a.lang)
 }
 
 func (a *App) Run() error {

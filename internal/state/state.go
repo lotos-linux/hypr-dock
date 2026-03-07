@@ -85,12 +85,6 @@ func (s *State) GetPinned() *[]string {
 	return &s.settings.PinnedApps
 }
 
-func (s *State) Update(fn func(*State)) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	fn(s)
-}
-
 func (s *State) SetWindow(window *gtk.Window) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

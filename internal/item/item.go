@@ -145,7 +145,9 @@ func (i *Item) TogglePin() {
 	running := len(i.Windows) > 0
 
 	if pin {
-		utils.RemoveFromSliceByValue(list, className)
+		*list = slices.DeleteFunc(*list, func(name string) bool {
+			return name == className
+		})
 		i.log.Trace("Remove", className)
 	}
 
@@ -154,7 +156,7 @@ func (i *Item) TogglePin() {
 	}
 
 	if !pin {
-		utils.AddToSlice(list, className)
+		*list = append(*list, className)
 		i.log.Trace("Add", className)
 	}
 

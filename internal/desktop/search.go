@@ -51,29 +51,24 @@ func SearchDesktopFile(className string) string {
 func GetAppDirs() []string {
 	home, _ := os.UserHomeDir()
 
-	res := []string{
+	return append([]string{
 		// dock custom apps
-		filepath.Join(home, ".local/share/hypr-dock/applications"),
+		filepath.Join(home, ".local/share/hypr-dock"),
 
 		// user local apps
-		filepath.Join(os.Getenv("XDG_DATA_HOME"), "applications"),
-		filepath.Join(home, ".local/share/applications"),
+		os.Getenv("XDG_DATA_HOME"),
+		filepath.Join(home, ".local/share"),
 
 		// flatpak
-		filepath.Join(home, ".local/share/flatpak/exports/share/applications"),
-		"/var/lib/flatpak/exports/share/applications",
+		filepath.Join(home, ".local/share/flatpak/exports/share"),
+		"/var/lib/flatpak/exports/share",
 
 		// system
-		"/usr/local/share/",
-		"/usr/share/",
-	}
+		"/usr/local/share",
+		"/usr/share",
 
-	// XDG standart
-	for _, dir := range strings.Split(os.Getenv("XDG_DATA_DIRS"), ":") {
-		res = append(res, filepath.Join(dir, "applications"))
-	}
-
-	return ProcessDirectories(res)
+		// xdg
+	}, strings.Split(os.Getenv("XDG_DATA_DIRS"), ":")...)
 }
 
 func ProcessDirectories(paths []string) []string {
@@ -86,6 +81,7 @@ func ProcessDirectories(paths []string) []string {
 		}
 
 		path = filepath.Clean(path)
+		path = filepath.Join(path, "applications")
 
 		if !filepath.IsAbs(path) {
 			continue

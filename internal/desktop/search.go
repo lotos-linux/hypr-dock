@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 func SearchDesktopFile(className string) string {
@@ -75,7 +76,19 @@ func SearchDesktopFile(className string) string {
 	return ""
 }
 
+var (
+	dirs  []string
+	dOnce sync.Once
+)
+
 func GetAppDirs() []string {
+	dOnce.Do(func() {
+		dirs = newAppDirs()
+	})
+	return dirs
+}
+
+func newAppDirs() []string {
 	home, _ := os.UserHomeDir()
 
 	return ProcessDirectories(append([]string{

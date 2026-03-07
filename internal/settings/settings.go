@@ -1,11 +1,10 @@
 package settings
 
 import (
-	"fmt"
 	"hypr-dock/internal/pkg/conf"
 	"hypr-dock/internal/pkg/flags"
 	"hypr-dock/internal/pkg/pinned"
-	"io"
+	"hypr-dock/internal/pkg/utils"
 
 	"os"
 	"path/filepath"
@@ -32,7 +31,7 @@ func Init(flags flags.Flags, log hclog.Logger) (*Settings, error) {
 	var err error
 
 	// get local app dir
-	localDir := filepath.Join(GetHome(), LOCAL, APP_NAME)
+	localDir := filepath.Join(os.Getenv("HOME"), LOCAL, APP_NAME)
 
 	// read pinned file
 	pinnedPath := filepath.Join(localDir, "pinned")
@@ -76,30 +75,32 @@ func Init(flags flags.Flags, log hclog.Logger) (*Settings, error) {
 }
 
 func GetConfigDir(dev bool) (string, bool, error) {
-	if !dev {
-		systemDir := filepath.Join("/etc", APP_NAME)
-		userDir := filepath.Join(GetHome(), ".config", APP_NAME)
+	var target, source string
 
-		exist, err := HasDir(userDir, systemDir)
-		if err != nil {
-			return "", false, err
-		}
+	if dev {
+		exe, _ := os.Executable()
+		exeDir := filepath.Dir(exe)
+		configs := filepath.Join(filepath.Dir(exeDir), "configs")
 
-		return userDir, exist, nil
+		target = filepath.Join(configs, "dev")
+		source = filepath.Join(configs, "default")
+	} else {
+		target = filepath.Join(os.Getenv("HOME"), ".config", APP_NAME)
+		source = filepath.Join("/etc", APP_NAME)
 	}
 
-	exe, _ := os.Executable()
-	exeDir := filepath.Dir(exe)
-	configs := filepath.Join(filepath.Dir(exeDir), "configs")
-	devDir := filepath.Join(configs, "dev")
-	def := filepath.Join(configs, "default")
+	created := utils.DirExists(target)
 
-	exist, err := HasDir(devDir, def)
+	if created {
+		return target, created, nil
+	}
+
+	err := utils.CopyDir(target, source)
 	if err != nil {
-		return "", false, err
+		return source, created, err
 	}
 
-	return devDir, exist, nil
+	return target, created, nil
 }
 
 func expand(path string) string {
@@ -108,59 +109,4 @@ func expand(path string) string {
 		return filepath.Join(home, path[2:])
 	}
 	return path
-}
-
-func GetHome() string {
-	home, _ := os.UserHomeDir()
-	return home
-}
-
-func HasDir(dir string, sourceDir string) (bool, error) {
-	if _, err := os.Stat(dir); err == nil {
-		return true, nil
-	}
-
-	if _, err := os.Stat(sourceDir); err != nil {
-		return false, fmt.Errorf("source directory does not exist: %w", err)
-	}
-
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return false, fmt.Errorf("failed to create directory: %w", err)
-	}
-
-	return false, filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(sourceDir, path)
-		if err != nil {
-			return err
-		}
-
-		destPath := filepath.Join(dir, relPath)
-
-		if info.IsDir() {
-			return os.MkdirAll(destPath, 0755)
-		}
-
-		return copyFile(path, destPath)
-	})
-}
-
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, in)
-	return err
 }

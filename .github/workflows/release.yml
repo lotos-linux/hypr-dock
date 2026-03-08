@@ -13,36 +13,19 @@ jobs:
       contents: write
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
-      
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libcairo2-dev libglib2.0-dev libgtk-layer-shell-dev
+      - uses: actions/checkout@v4
       
       - name: Get version
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
       
-      - name: Build binaries
-        run: |
-          mkdir -p pkg/usr/bin pkg/etc/hypr-dock
-          go build -v -ldflags="-X main.Version=${{ steps.version.outputs.VERSION }}" -o pkg/usr/bin/hypr-dock ./cmd/hypr-dock/.
-          go build -v -ldflags="-X main.Version=${{ steps.version.outputs.VERSION }}" -o pkg/usr/bin/hypr-alttab ./cmd/hypr-alttab/.
-          cp -r configs/default/* pkg/etc/hypr-dock/ 2>/dev/null || true
-      
       - name: Create PKGBUILD
         run: |
-          cat > PKGBUILD << EOF
+          mkdir -p arch-package
+          cat > arch-package/PKGBUILD << 'EOF'
           # Maintainer: GitHub Actions
           pkgname=hypr-dock
-          pkgver=${{ steps.version.outputs.VERSION }}
+          pkgver=__VERSION__
           pkgrel=1
           pkgdesc="Dock and Alt-Tab switcher for Hyprland"
           arch=('x86_64')
@@ -51,51 +34,35 @@ jobs:
           depends=('gtk3' 'cairo' 'gtk-layer-shell')
           makedepends=('go')
           
+          build() {
+            cd "$srcdir"
+            export CGO_CFLAGS="-I/usr/include/gtk-3.0 -I/usr/include/cairo -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include"
+            export CGO_LDFLAGS="-lgtk-3 -lgdk-3 -lcairo -lgobject-2.0 -lglib-2.0"
+            go build -o hypr-dock ./cmd/hypr-dock/.
+            go build -o hypr-alttab ./cmd/hypr-alttab/.
+          }
+          
           package() {
-            cd "\$srcdir"
-            install -Dm755 pkg/usr/bin/hypr-dock "\$pkgdir/usr/bin/hypr-dock"
-            install -Dm755 pkg/usr/bin/hypr-alttab "\$pkgdir/usr/bin/hypr-alttab"
-            install -dm755 "\$pkgdir/etc/hypr-dock"
-            cp -r pkg/etc/hypr-dock/* "\$pkgdir/etc/hypr-dock/" 2>/dev/null || true
+            install -Dm755 "$srcdir/hypr-dock" "$pkgdir/usr/bin/hypr-dock"
+            install -Dm755 "$srcdir/hypr-alttab" "$pkgdir/usr/bin/hypr-alttab"
+            install -dm755 "$pkgdir/etc/hypr-dock"
+            cp -r "$srcdir/configs/default"/* "$pkgdir/etc/hypr-dock/" 2>/dev/null || true
           }
           EOF
           
-          # Создаем .install скрипт
-          cat > hypr-dock.install << 'EOF'
-          post_install() {
-            echo "hypr-dock installed!"
-            echo "Configs are in /etc/hypr-dock/"
-            echo "Add to your Hyprland config:"
-            echo "exec-once = hypr-dock"
-            echo "bind = \$mainMod, Tab, exec, hypr-alttab"
-          }
-          
-          post_upgrade() {
-            post_install
-          }
-          
-          post_remove() {
-            echo "hypr-dock removed. Configs remain in /etc/hypr-dock/"
-          }
-          EOF
+          sed -i "s/__VERSION__/${{ steps.version.outputs.VERSION }}/" arch-package/PKGBUILD
+          cp -r cmd configs go.mod go.sum arch-package/ 2>/dev/null || true
       
       - name: Build Arch package
         uses: heyhusen/archlinux-package-action@v2
         with:
+          path: arch-package
           pkgver: ${{ steps.version.outputs.VERSION }}
-          flags: '--noconfirm'
-      
-      - name: Upload package
-        uses: actions/upload-artifact@v4
-        with:
-          name: arch-package
-          path: "*.pkg.tar.zst"
+          flags: '--syncdeps --noconfirm --needed'
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: "*.pkg.tar.zst"
-          generate_release_notes: true
+          files: arch-package/*.pkg.tar.zst
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

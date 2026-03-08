@@ -1,0 +1,150 @@
+name: Build Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev rpm
+      
+      - name: Get version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      
+      # Сборка бинарников
+      - name: Build binaries
+        run: |
+          mkdir -p build/usr/bin
+          go build -v -o build/usr/bin/hypr-dock ./cmd/hypr-dock/.
+          go build -v -o build/usr/bin/hypr-alttab ./cmd/hypr-alttab/.
+      
+      # DEB пакет
+      - name: Build DEB
+        run: |
+          mkdir -p deb/DEBIAN deb/usr/bin deb/etc/hypr-dock
+          
+          # Бинарники
+          cp build/usr/bin/* deb/usr/bin/
+          
+          # Конфиги
+          cp -r configs/default/* deb/etc/hypr-dock/
+          
+          # Control файл
+          cat > deb/DEBIAN/control << EOF
+          Package: hypr-dock
+          Version: ${{ steps.version.outputs.VERSION }}
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Depends: libgtk-3-0, libcairo2
+          Maintainer: ${{ github.repository_owner }}
+          Description: Hyprland dock and alt-tab utility
+           Dock and application switcher for Hyprland Wayland compositor.
+          EOF
+          
+          dpkg-deb --build deb hypr-dock_${{ steps.version.outputs.VERSION }}_amd64.deb
+      
+      # RPM пакет (Fedora)
+      - name: Build RPM
+        run: |
+          mkdir -p rpm/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+          
+          # Создаем структуру файлов
+          mkdir -p rpm-install/usr/bin rpm-install/etc/hypr-dock
+          cp build/usr/bin/* rpm-install/usr/bin/
+          cp -r configs/default/* rpm-install/etc/hypr-dock/
+          
+          # Tar для источника
+          tar -czf rpm/SOURCES/hypr-dock.tar.gz -C rpm-install .
+          
+          # Spec файл
+          cat > rpm/SPECS/hypr-dock.spec << EOF
+          Name: hypr-dock
+          Version: ${{ steps.version.outputs.VERSION }}
+          Release: 1%{?dist}
+          Summary: Hyprland dock and alt-tab utility
+          License: MIT
+          URL: https://github.com/${{ github.repository }}
+          Requires: gtk3, cairo
+          
+          %description
+          Dock and application switcher for Hyprland Wayland compositor.
+          
+          %prep
+          %setup -q -T -c -n hypr-dock
+          tar -xf %{_sourcedir}/hypr-dock.tar.gz
+          
+          %install
+          rm -rf %{buildroot}
+          cp -r * %{buildroot}/
+          
+          %files
+          /usr/bin/*
+          /etc/hypr-dock/*
+          
+          %post
+          # Конфиги уже на месте
+          echo "hypr-dock installed"
+          
+          %changelog
+          * $(date +"%a %b %d %Y") ${{ github.repository_owner }} - ${{ steps.version.outputs.VERSION }}-1
+          - Version ${{ steps.version.outputs.VERSION }}
+          EOF
+          
+          rpmbuild -bb rpm/SPECS/hypr-dock.spec --define "_topdir $(pwd)/rpm"
+          cp rpm/RPMS/x86_64/*.rpm .
+      
+      # Arch пакет (простой PKGBUILD)
+      - name: Build Arch package
+        run: |
+          mkdir -p arch/pkg/usr/bin arch/pkg/etc/hypr-dock
+          cp build/usr/bin/* arch/pkg/usr/bin/
+          cp -r configs/default/* arch/pkg/etc/hypr-dock/
+          
+          # Создаем PKGBUILD
+          cat > arch/PKGBUILD << EOF
+          pkgname=hypr-dock
+          pkgver=${{ steps.version.outputs.VERSION }}
+          pkgrel=1
+          pkgdesc="Hyprland dock and alt-tab utility"
+          arch=('x86_64')
+          url="https://github.com/${{ github.repository }}"
+          license=('MIT')
+          depends=('gtk3' 'cairo')
+          
+          package() {
+            cp -r ../pkg/* "\$pkgdir/"
+          }
+          EOF
+          
+          # Собираем пакет
+          cd arch
+          makepkg -f
+          cp *.pkg.tar.zst ../
+          cd ..
+      
+      # Загружаем в релиз
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            *.deb
+            *.rpm
+            *.pkg.tar.zst
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

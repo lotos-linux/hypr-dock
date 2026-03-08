@@ -1,4 +1,4 @@
-name: Build and Release Packages
+name: Build Arch Package
 
 on:
   push:
@@ -7,221 +7,67 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-arch:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
       
-      - name: Install system dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-dev \
-            libcairo2-dev \
-            libglib2.0-dev \
-            libwayland-dev \
-            pkg-config \
-            rpm
-          
-          # Устанавливаем gtk-layer-shell из официального репозитория Ubuntu
-          # Доступен начиная с Ubuntu 22.04 (Jammy)
-          sudo apt-get install -y libgtk-layer-shell-dev
-          
-          # Проверяем установку
-          pkg-config --modversion gtk-layer-shell-0 || echo "gtk-layer-shell not found"
+          sudo apt-get install -y libgtk-3-dev libcairo2-dev libglib2.0-dev libgtk-layer-shell-dev
       
-      - name: Get version from tag
-        id: get_version
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/v}
-          else
-            VERSION=$(git describe --tags --always --dirty)
-          fi
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
+      - name: Get version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
       
       - name: Build binaries
         run: |
-          mkdir -p build/usr/bin
-          go mod tidy
-          go build -v -ldflags="-X main.Version=${{ steps.get_version.outputs.VERSION }}" -o build/usr/bin/hypr-dock ./cmd/hypr-dock/.
-          go build -v -ldflags="-X main.Version=${{ steps.get_version.outputs.VERSION }}" -o build/usr/bin/hypr-alttab ./cmd/hypr-alttab/.
+          mkdir -p build/usr/bin build/etc/hypr-dock
+          go build -v -ldflags="-X main.Version=${{ steps.version.outputs.VERSION }}" -o build/usr/bin/hypr-dock ./cmd/hypr-dock/.
+          go build -v -ldflags="-X main.Version=${{ steps.version.outputs.VERSION }}" -o build/usr/bin/hypr-alttab ./cmd/hypr-alttab/.
+          cp -r configs/default/* build/etc/hypr-dock/ 2>/dev/null || true
       
-      # Debian/Ubuntu package
-      - name: Build DEB package
-        run: |
-          mkdir -p deb-pkg/DEBIAN deb-pkg/usr/bin deb-pkg/etc/hypr-dock
-          
-          # Copy binaries
-          cp build/usr/bin/hypr-dock deb-pkg/usr/bin/
-          cp build/usr/bin/hypr-alttab deb-pkg/usr/bin/
-          
-          # Copy configs
-          cp -r configs/default/* deb-pkg/etc/hypr-dock/ 2>/dev/null || true
-          
-          # Create control file с правильными зависимостями
-          cat > deb-pkg/DEBIAN/control << EOF
-          Package: hypr-dock
-          Version: ${{ steps.get_version.outputs.VERSION }}
-          Section: x11
-          Priority: optional
-          Architecture: amd64
-          Depends: libgtk-3-0 (>= 3.22), libcairo2 (>= 1.15), libgtk-layer-shell0 (>= 0.7.0)
-          Maintainer: ${{ github.repository_owner }} <${{ github.repository_owner }}@users.noreply.github.com>
-          Description: Dock and Alt-Tab switcher for Hyprland
-           A dock and application switcher utility specifically designed for the Hyprland Wayland compositor.
-           Includes hypr-dock (dock) and hypr-alttab (alt-tab switcher).
-          Homepage: https://github.com/${{ github.repository }}
-          EOF
-          
-          # Create postinst script
-          cat > deb-pkg/DEBIAN/postinst << 'EOF'
-          #!/bin/sh
-          set -e
-          if [ "$1" = "configure" ]; then
-              echo "hypr-dock installed successfully!"
-              echo "Configuration files are in /etc/hypr-dock/"
-          fi
-          EOF
-          chmod 755 deb-pkg/DEBIAN/postinst
-          
-          # Build the package
-          dpkg-deb --build deb-pkg hypr-dock_${{ steps.get_version.outputs.VERSION }}_amd64.deb
-      
-      # Fedora/RHEL package
-      - name: Build RPM package
-        run: |
-          mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-          
-          # Prepare sources
-          mkdir -p rpm-src/usr/bin rpm-src/etc/hypr-dock
-          cp build/usr/bin/hypr-dock rpm-src/usr/bin/
-          cp build/usr/bin/hypr-alttab rpm-src/usr/bin/
-          cp -r configs/default/* rpm-src/etc/hypr-dock/ 2>/dev/null || true
-          
-          # Create tar.gz
-          tar -czf rpmbuild/SOURCES/hypr-dock-${{ steps.get_version.outputs.VERSION }}.tar.gz -C rpm-src .
-          
-          # Create spec file с правильными зависимостями
-          cat > rpmbuild/SPECS/hypr-dock.spec << EOF
-          Name:           hypr-dock
-          Version:        ${{ steps.get_version.outputs.VERSION }}
-          Release:        1%{?dist}
-          Summary:        Dock and Alt-Tab switcher for Hyprland
-          License:        MIT
-          URL:            https://github.com/${{ github.repository }}
-          Source0:        %{name}-%{version}.tar.gz
-          BuildArch:      x86_64
-          Requires:       gtk3 >= 3.22, cairo >= 1.15, gtk-layer-shell >= 0.7.0
-          
-          %description
-          A dock and application switcher utility specifically designed for the 
-          Hyprland Wayland compositor. Includes hypr-dock (dock) and hypr-alttab 
-          (alt-tab switcher).
-          
-          %prep
-          %setup -q -c -T
-          tar -xf %{_sourcedir}/%{name}-%{version}.tar.gz
-          
-          %install
-          rm -rf %{buildroot}
-          mkdir -p %{buildroot}/usr/bin
-          mkdir -p %{buildroot}/etc/hypr-dock
-          cp usr/bin/* %{buildroot}/usr/bin/
-          cp etc/hypr-dock/* %{buildroot}/etc/hypr-dock/ 2>/dev/null || :
-          
-          %files
-          /usr/bin/hypr-dock
-          /usr/bin/hypr-alttab
-          /etc/hypr-dock/*
-          
-          %post
-          echo "hypr-dock installed successfully!"
-          echo "Configuration files are in /etc/hypr-dock/"
-          
-          %changelog
-          * $(date +"%a %b %d %Y") ${{ github.repository_owner }} - ${{ steps.get_version.outputs.VERSION }}-1
-          - Version ${{ steps.get_version.outputs.VERSION }}
-          EOF
-          
-          # Build RPM
-          rpmbuild -bb rpmbuild/SPECS/hypr-dock.spec --define "_topdir $(pwd)/rpmbuild" --nodeps
-          cp rpmbuild/RPMS/x86_64/*.rpm .
-      
-      # Arch Linux package
       - name: Build Arch package
-        run: |
-          sudo pacman -Syu --noconfirm base-devel
-          
-          # Устанавливаем gtk-layer-shell для Arch
-          mkdir -p arch-pkg
-          cp build/usr/bin/hypr-dock arch-pkg/
-          cp build/usr/bin/hypr-alttab arch-pkg/
-          
-          # Create PKGBUILD с правильными зависимостями
-          cat > arch-pkg/PKGBUILD << EOF
-          # Maintainer: ${{ github.repository_owner }}
-          pkgname=hypr-dock
-          pkgver=${{ steps.get_version.outputs.VERSION }}
-          pkgrel=1
-          pkgdesc="Dock and Alt-Tab switcher for Hyprland"
-          arch=('x86_64')
-          url="https://github.com/${{ github.repository }}"
-          license=('MIT')
-          depends=('gtk3' 'cairo' 'gtk-layer-shell')
-          makedepends=('go')
-          source=("hypr-dock::file://$(pwd)/hypr-dock"
-                 "hypr-alttab::file://$(pwd)/hypr-alttab")
-          md5sums=('SKIP' 'SKIP')
-          
-          package() {
-              install -Dm755 "\$srcdir/hypr-dock" "\$pkgdir/usr/bin/hypr-dock"
-              install -Dm755 "\$srcdir/hypr-alttab" "\$pkgdir/usr/bin/hypr-alttab"
-              
-              # Install configs
-              install -dm755 "\$pkgdir/etc/hypr-dock"
-              cp -r $GITHUB_WORKSPACE/configs/default/* "\$pkgdir/etc/hypr-dock/" 2>/dev/null || true
-          }
-          EOF
-          
-          # Build the package
-          cd arch-pkg
-          makepkg -f --noconfirm
-          cp *.pkg.tar.zst ../
-          cd ..
+        uses: heyhusen/archlinux-package-action@v2
+        with:
+          pkgname: hypr-dock
+          pkgver: ${{ steps.version.outputs.VERSION }}
+          pkgdesc: "Dock and Alt-Tab switcher for Hyprland"
+          depends: |
+            gtk3
+            cairo
+            gtk-layer-shell
+          files: |
+            usr/bin/hypr-dock:755:build/usr/bin/hypr-dock
+            usr/bin/hypr-alttab:755:build/usr/bin/hypr-alttab
+            etc/hypr-dock/config:644:build/etc/hypr-dock/config
+          install: |
+            post_install() {
+              echo "hypr-dock installed!"
+              echo "Configs are in /etc/hypr-dock/"
+            }
       
-      - name: Upload artifacts
+      - name: Upload package
         uses: actions/upload-artifact@v4
         with:
-          name: packages
-          path: |
-            *.deb
-            *.rpm
-            *.pkg.tar.zst
+          name: arch-package
+          path: "*.pkg.tar.zst"
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: |
-            *.deb
-            *.rpm
-            *.pkg.tar.zst
-          draft: false
-          prerelease: false
+          files: "*.pkg.tar.zst"
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

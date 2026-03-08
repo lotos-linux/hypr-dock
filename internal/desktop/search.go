@@ -9,10 +9,9 @@ import (
 
 func SearchDesktopFile(className string) string {
 	for _, appDir := range GetAppDirs() {
-		desktopFile := className + ".desktop"
-		_, err := os.Stat(filepath.Join(appDir, desktopFile))
+		_, err := os.Stat(filepath.Join(appDir, className+".desktop"))
 		if err == nil {
-			return filepath.Join(appDir, desktopFile)
+			return filepath.Join(appDir, className+".desktop")
 		}
 
 		// If file non found
@@ -66,11 +65,11 @@ func SearchDesktopFile(className string) string {
 				}
 			}
 		}
+	}
 
-		path, exist := GetFiles()[className]
-		if exist {
-			return path
-		}
+	path, exist := GetFiles()[className]
+	if exist {
+		return path
 	}
 
 	return ""

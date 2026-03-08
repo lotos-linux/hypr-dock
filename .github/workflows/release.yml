@@ -125,7 +125,6 @@ jobs:
           URL:            https://github.com/${{ github.repository }}
           Source0:        %{name}-%{version}.tar.gz
           BuildArch:      x86_64
-          BuildRequires:  gtk3-devel, cairo-devel, gtk-layer-shell-devel
           Requires:       gtk3 >= 3.22, cairo >= 1.15, gtk-layer-shell >= 0.7.0
           
           %description
@@ -134,8 +133,8 @@ jobs:
           (alt-tab switcher).
           
           %prep
-          %setup -q -c -n %{name}-%{version}
-          cp -r ../%{name}-%{version}/* .
+          %setup -q -c -T
+          tar -xf %{_sourcedir}/%{name}-%{version}.tar.gz
           
           %install
           rm -rf %{buildroot}
@@ -159,7 +158,7 @@ jobs:
           EOF
           
           # Build RPM
-          rpmbuild -bb rpmbuild/SPECS/hypr-dock.spec --define "_topdir $(pwd)/rpmbuild"
+          rpmbuild -bb rpmbuild/SPECS/hypr-dock.spec --define "_topdir $(pwd)/rpmbuild" --nodeps
           cp rpmbuild/RPMS/x86_64/*.rpm .
       
       # Arch Linux package

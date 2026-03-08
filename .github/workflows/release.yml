@@ -32,30 +32,58 @@ jobs:
       
       - name: Build binaries
         run: |
-          mkdir -p build/usr/bin build/etc/hypr-dock
-          go build -v -ldflags="-X main.Version=${{ steps.version.outputs.VERSION }}" -o build/usr/bin/hypr-dock ./cmd/hypr-dock/.
-          go build -v -ldflags="-X main.Version=${{ steps.version.outputs.VERSION }}" -o build/usr/bin/hypr-alttab ./cmd/hypr-alttab/.
-          cp -r configs/default/* build/etc/hypr-dock/ 2>/dev/null || true
+          mkdir -p pkg/usr/bin pkg/etc/hypr-dock
+          go build -v -ldflags="-X main.Version=${{ steps.version.outputs.VERSION }}" -o pkg/usr/bin/hypr-dock ./cmd/hypr-dock/.
+          go build -v -ldflags="-X main.Version=${{ steps.version.outputs.VERSION }}" -o pkg/usr/bin/hypr-alttab ./cmd/hypr-alttab/.
+          cp -r configs/default/* pkg/etc/hypr-dock/ 2>/dev/null || true
+      
+      - name: Create PKGBUILD
+        run: |
+          cat > PKGBUILD << EOF
+          # Maintainer: GitHub Actions
+          pkgname=hypr-dock
+          pkgver=${{ steps.version.outputs.VERSION }}
+          pkgrel=1
+          pkgdesc="Dock and Alt-Tab switcher for Hyprland"
+          arch=('x86_64')
+          url="https://github.com/${{ github.repository }}"
+          license=('MIT')
+          depends=('gtk3' 'cairo' 'gtk-layer-shell')
+          makedepends=('go')
+          
+          package() {
+            cd "\$srcdir"
+            install -Dm755 pkg/usr/bin/hypr-dock "\$pkgdir/usr/bin/hypr-dock"
+            install -Dm755 pkg/usr/bin/hypr-alttab "\$pkgdir/usr/bin/hypr-alttab"
+            install -dm755 "\$pkgdir/etc/hypr-dock"
+            cp -r pkg/etc/hypr-dock/* "\$pkgdir/etc/hypr-dock/" 2>/dev/null || true
+          }
+          EOF
+          
+          # Создаем .install скрипт
+          cat > hypr-dock.install << 'EOF'
+          post_install() {
+            echo "hypr-dock installed!"
+            echo "Configs are in /etc/hypr-dock/"
+            echo "Add to your Hyprland config:"
+            echo "exec-once = hypr-dock"
+            echo "bind = \$mainMod, Tab, exec, hypr-alttab"
+          }
+          
+          post_upgrade() {
+            post_install
+          }
+          
+          post_remove() {
+            echo "hypr-dock removed. Configs remain in /etc/hypr-dock/"
+          }
+          EOF
       
       - name: Build Arch package
         uses: heyhusen/archlinux-package-action@v2
         with:
-          pkgname: hypr-dock
           pkgver: ${{ steps.version.outputs.VERSION }}
-          pkgdesc: "Dock and Alt-Tab switcher for Hyprland"
-          depends: |
-            gtk3
-            cairo
-            gtk-layer-shell
-          files: |
-            usr/bin/hypr-dock:755:build/usr/bin/hypr-dock
-            usr/bin/hypr-alttab:755:build/usr/bin/hypr-alttab
-            etc/hypr-dock/config:644:build/etc/hypr-dock/config
-          install: |
-            post_install() {
-              echo "hypr-dock installed!"
-              echo "Configs are in /etc/hypr-dock/"
-            }
+          flags: '--noconfirm'
       
       - name: Upload package
         uses: actions/upload-artifact@v4

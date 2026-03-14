@@ -116,15 +116,13 @@ jobs:
         run: |
           cd arch-package
           
-          # Обновляем контрольные суммы
-          updpkgsums
-          
-          # Создаем пользователя для сборки (makepkg не может работать от root)
           useradd -m builder
           chown -R builder:builder .
           
-          # Собираем пакет
-          su builder -c "makepkg -s --noconfirm"
+          su builder -c "
+            updpkgsums
+            makepkg -s --noconfirm
+          "
           
           # Находим основной пакет (не debug)
           PKG_FILE=$(ls *.pkg.tar.zst | grep -v debug | head -1)

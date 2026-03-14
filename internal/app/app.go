@@ -10,6 +10,7 @@ import (
 	"hypr-dock/internal/btnctl"
 	"hypr-dock/internal/hypr/hyprOpt"
 	"hypr-dock/internal/item"
+	"hypr-dock/internal/pkg/utils"
 	"hypr-dock/internal/state"
 	"hypr-dock/pkg/ipc"
 )
@@ -64,6 +65,10 @@ func renderItems(appState *state.State) {
 func InitNewItemInIPC(ipcClient ipc.Client, appState *state.State) {
 	list := appState.GetList()
 	className := ipcClient.Class
+
+	if className == "" {
+		className = utils.NormaliseTitle(ipcClient.InitialTitle)
+	}
 
 	pin := slices.Contains(*appState.GetPinned(), className)
 	added := list.Get(className) != nil

@@ -36,9 +36,9 @@ func New(className string, lang ...string) (*App, error) {
 
 	errData := &App{
 		name:         map[string]string{"": className},
-		comment:      map[string]string{"": ""},
-		icon:         "",
-		exec:         "",
+		comment:      map[string]string{"": className},
+		icon:         className,
+		exec:         className,
 		singleWindow: false,
 		actions:      []Action{},
 		raw:          make(map[string]map[string]string),

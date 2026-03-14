@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"regexp"
+	"strings"
+
 	"github.com/hashicorp/go-hclog"
 )
 
@@ -24,4 +27,11 @@ func СreateLogger(logLevel string) hclog.Logger {
 		Level: level,
 		Color: hclog.AutoColor,
 	})
+}
+
+func NormaliseTitle(title string) string {
+	re := regexp.MustCompile(`^[a-zA-Z-]+`)
+	firstWord := re.FindString(title)
+
+	return strings.ToLower(firstWord)
 }

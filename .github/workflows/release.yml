@@ -125,6 +125,17 @@ jobs:
           flags: '--syncdeps --noconfirm --needed'
           updpkgsums: true
       
+      - name: Copy packages from container
+        run: |
+          # ID контейнера, в котором выполнялось действие
+          CONTAINER_ID=$(docker ps -aq --filter "ancestor=heyhusen/archlinux-package-action:v2" | head -1)
+          if [ -n "$CONTAINER_ID" ]; then
+            mkdir -p arch-package
+            docker cp $CONTAINER_ID:/home/builder/gh-action/*.pkg.tar.zst arch-package/ 2>/dev/null || true
+            echo "Copied packages:"
+            ls -la arch-package/*.pkg.tar.zst || true
+          fi
+
       - name: Find package
         id: find-pkg
         run: |

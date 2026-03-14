@@ -1,10 +1,15 @@
 name: Build Arch Package
 
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types: [published]
   workflow_dispatch:
+    inputs:
+      use_existing_tag:
+        description: 'Use latest existing tag instead of generating new one'
+        type: boolean
+        default: true
+        required: false
 
 jobs:
   build-arch:
@@ -14,44 +19,103 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
       
       - name: Get version
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+            VERSION="${TAG#v}"
+            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+            echo "Using release version: $VERSION"
+          else
+            if [ "${{ github.event.inputs.use_existing_tag }}" == "true" ]; then
+              LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+              VERSION="${LATEST_TAG#v}"
+              echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+              echo "Using latest tag: $VERSION"
+            else
+              VERSION="$(date +%Y%m%d%H%M%S)"
+              echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+              echo "WARNING: Using generated version without existing tag: $VERSION"
+            fi
+          fi
       
-      - name: Create PKGBUILD
+      - name: Prepare PKGBUILD
         run: |
           mkdir -p arch-package
+          
           cat > arch-package/PKGBUILD << 'EOF'
           # Maintainer: GitHub Actions
           pkgname=hypr-dock
-          pkgver=__VERSION__
+          pkgver=${{ steps.version.outputs.VERSION }}
           pkgrel=1
-          pkgdesc="Dock and Alt-Tab switcher for Hyprland"
+          pkgdesc="Interactive Dock Panel for Hyprland"
           arch=('x86_64')
           url="https://github.com/${{ github.repository }}"
-          license=('MIT')
-          depends=('gtk3' 'cairo' 'gtk-layer-shell')
-          makedepends=('go')
+          license=('GPL3')
+          depends=('gtk3' 'gtk-layer-shell')
+          makedepends=('go' 'git' 'make' 'base-devel' 'pkg-config')
+          provides=('hypr-dock' 'hypr-alttab')
+          conflicts=()
+          source=("hypr-dock.tar.gz::https://github.com/${{ github.repository }}/archive/refs/tags/v${pkgver}.tar.gz")
           
           build() {
-            cd "$srcdir"
-            export CGO_CFLAGS="-I/usr/include/gtk-3.0 -I/usr/include/cairo -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include"
-            export CGO_LDFLAGS="-lgtk-3 -lgdk-3 -lcairo -lgobject-2.0 -lglib-2.0"
-            go build -o hypr-dock ./cmd/hypr-dock/.
-            go build -o hypr-alttab ./cmd/hypr-alttab/.
+            cd "$srcdir/$pkgname-$pkgver"
+            
+            export CGO_CPPFLAGS="${CPPFLAGS}"
+            export CGO_CFLAGS="${CFLAGS}"
+            export CGO_CXXFLAGS="${CXXFLAGS}"
+            export CGO_LDFLAGS="${LDFLAGS}"
+            export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
+            
+            mkdir -p bin
+            
+            go build -v -o "bin/hypr-dock" -ldflags="-linkmode=external" ./cmd/hypr-dock
+            go build -v -o "bin/hypr-alttab" -ldflags="-linkmode=external" ./cmd/hypr-alttab
+            
+            if [ ! -f "bin/hypr-dock" ]; then
+              echo "Error: hypr-dock binary not built!"
+              exit 1
+            fi
+            
+            if [ ! -f "bin/hypr-alttab" ]; then
+              echo "Error: hypr-alttab binary not built!"
+              exit 1
+            fi
           }
           
           package() {
-            install -Dm755 "$srcdir/hypr-dock" "$pkgdir/usr/bin/hypr-dock"
-            install -Dm755 "$srcdir/hypr-alttab" "$pkgdir/usr/bin/hypr-alttab"
-            install -dm755 "$pkgdir/etc/hypr-dock"
-            cp -r "$srcdir/configs/default"/* "$pkgdir/etc/hypr-dock/" 2>/dev/null || true
+            cd "$srcdir"
+            
+            SOURCE_DIR=$(find . -maxdepth 1 -type d -name "*" ! -name "." | head -1)
+            if [ -z "$SOURCE_DIR" ]; then
+              echo "Error: Could not find source directory in package()"
+              exit 1
+            fi
+            
+            cd "$SOURCE_DIR"
+            
+            install -Dm755 "bin/hypr-dock" "$pkgdir/usr/bin/hypr-dock"
+            install -Dm755 "bin/hypr-alttab" "$pkgdir/usr/bin/hypr-alttab"
+            
+            if [ -d "configs/default" ]; then
+              install -dm755 "$pkgdir/etc/hypr-dock"
+              cp -r configs/default/* "$pkgdir/etc/hypr-dock/"
+            fi
+            
+            install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
+            
+            if [ -f "README.md" ]; then
+              install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md" 2>/dev/null || true
+            fi
           }
           EOF
           
-          sed -i "s/__VERSION__/${{ steps.version.outputs.VERSION }}/" arch-package/PKGBUILD
-          cp -r cmd configs go.mod go.sum arch-package/ 2>/dev/null || true
+          echo "PKGBUILD created successfully:"
+          cat arch-package/PKGBUILD
       
       - name: Build Arch package
         uses: heyhusen/archlinux-package-action@v2
@@ -59,10 +123,44 @@ jobs:
           path: arch-package
           pkgver: ${{ steps.version.outputs.VERSION }}
           flags: '--syncdeps --noconfirm --needed'
+          updpkgsums: true
       
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Find package
+        id: find-pkg
+        run: |
+          PKG_FILE=$(find arch-package -name "*.pkg.tar.zst" | head -1)
+          
+          if [ -z "$PKG_FILE" ]; then
+            PKG_FILE=$(find . -name "*.pkg.tar.zst" | head -1)
+          fi
+          
+          if [ -n "$PKG_FILE" ]; then
+            echo "Found package: $PKG_FILE"
+            echo "pkg_path=$PKG_FILE" >> $GITHUB_OUTPUT
+            echo "pkg_name=$(basename $PKG_FILE)" >> $GITHUB_OUTPUT
+            
+            echo "Package size: $(du -h $PKG_FILE | cut -f1)"
+            file $PKG_FILE
+          else
+            echo "::error::No package file found!"
+            exit 1
+          fi
+      
+      - name: Attach package to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
         with:
-          files: arch-package/*.pkg.tar.zst
+          files: ${{ steps.find-pkg.outputs.pkg_path }}
+          tag_name: ${{ github.event.release.tag_name }}
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hypr-dock-${{ steps.version.outputs.VERSION }}-arch-package
+          path: ${{ steps.find-pkg.outputs.pkg_path }}
+          if-no-files-found: warn
+          retention-days: 30

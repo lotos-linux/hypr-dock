@@ -11,16 +11,22 @@ on:
         default: true
         required: false
 
+permissions:
+  contents: read
+
 jobs:
   build-arch:
     runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    timeout-minutes: 30
     permissions:
-      contents: write
+      contents: write  # Для загрузки в релиз
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          fetch-depth: 0 
+          fetch-depth: 0
       
       - name: Get version
         id: version
@@ -57,13 +63,14 @@ jobs:
           url="https://github.com/${{ github.repository }}"
           license=('GPL3')
           depends=('gtk3' 'gtk-layer-shell')
-          makedepends=('go' 'git' 'make' 'base-devel' 'pkg-config')
+          makedepends=('go' 'git' 'make')
           provides=('hypr-dock' 'hypr-alttab')
           conflicts=()
+          
           source=("hypr-dock.tar.gz::https://github.com/${{ github.repository }}/archive/refs/tags/v${pkgver}.tar.gz")
           
           build() {
-            cd "$srcdir/$pkgname-$pkgver"
+            cd "$srcdir/hypr-dock-${pkgver}"
             
             export CGO_CPPFLAGS="${CPPFLAGS}"
             export CGO_CFLAGS="${CFLAGS}"
@@ -75,28 +82,10 @@ jobs:
             
             go build -v -o "bin/hypr-dock" -ldflags="-linkmode=external" ./cmd/hypr-dock
             go build -v -o "bin/hypr-alttab" -ldflags="-linkmode=external" ./cmd/hypr-alttab
-            
-            if [ ! -f "bin/hypr-dock" ]; then
-              echo "Error: hypr-dock binary not built!"
-              exit 1
-            fi
-            
-            if [ ! -f "bin/hypr-alttab" ]; then
-              echo "Error: hypr-alttab binary not built!"
-              exit 1
-            fi
           }
           
           package() {
-            cd "$srcdir"
-            
-            SOURCE_DIR=$(find . -maxdepth 1 -type d -name "*" ! -name "." | head -1)
-            if [ -z "$SOURCE_DIR" ]; then
-              echo "Error: Could not find source directory in package()"
-              exit 1
-            fi
-            
-            cd "$SOURCE_DIR"
+            cd "$srcdir/hypr-dock-${pkgver}"
             
             install -Dm755 "bin/hypr-dock" "$pkgdir/usr/bin/hypr-dock"
             install -Dm755 "bin/hypr-alttab" "$pkgdir/usr/bin/hypr-alttab"
@@ -117,51 +106,46 @@ jobs:
           echo "PKGBUILD created successfully:"
           cat arch-package/PKGBUILD
       
-      - name: Build Arch package
-        uses: heyhusen/archlinux-package-action@v2
-        with:
-          path: arch-package
-          pkgver: ${{ steps.version.outputs.VERSION }}
-          flags: '--syncdeps --noconfirm --needed'
-          updpkgsums: true
+      - name: Update system and install dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed go git base-devel
       
-      - name: Copy packages from container
+      - name: Build package
+        id: build
         run: |
-          # ID контейнера, в котором выполнялось действие
-          CONTAINER_ID=$(docker ps -aq --filter "ancestor=heyhusen/archlinux-package-action:v2" | head -1)
-          if [ -n "$CONTAINER_ID" ]; then
-            mkdir -p arch-package
-            docker cp $CONTAINER_ID:/home/builder/gh-action/*.pkg.tar.zst arch-package/ 2>/dev/null || true
-            echo "Copied packages:"
-            ls -la arch-package/*.pkg.tar.zst || true
-          fi
-
-      - name: Find package
-        id: find-pkg
-        run: |
-          PKG_FILE=$(find arch-package -name "*.pkg.tar.zst" | head -1)
+          cd arch-package
           
-          if [ -z "$PKG_FILE" ]; then
-            PKG_FILE=$(find . -name "*.pkg.tar.zst" | head -1)
-          fi
+          # Обновляем контрольные суммы
+          updpkgsums
           
+          # Создаем пользователя для сборки (makepkg не может работать от root)
+          useradd -m builder
+          chown -R builder:builder .
+          
+          # Собираем пакет
+          su builder -c "makepkg -s --noconfirm"
+          
+          # Находим основной пакет (не debug)
+          PKG_FILE=$(ls *.pkg.tar.zst | grep -v debug | head -1)
           if [ -n "$PKG_FILE" ]; then
             echo "Found package: $PKG_FILE"
-            echo "pkg_path=$PKG_FILE" >> $GITHUB_OUTPUT
-            echo "pkg_name=$(basename $PKG_FILE)" >> $GITHUB_OUTPUT
+            echo "pkg_path=$(realpath $PKG_FILE)" >> $GITHUB_OUTPUT
+            echo "pkg_name=$PKG_FILE" >> $GITHUB_OUTPUT
             
             echo "Package size: $(du -h $PKG_FILE | cut -f1)"
             file $PKG_FILE
           else
             echo "::error::No package file found!"
+            ls -la
             exit 1
           fi
       
       - name: Attach package to release
         if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
         with:
-          files: ${{ steps.find-pkg.outputs.pkg_path }}
+          files: arch-package/${{ steps.build.outputs.pkg_name }}
           tag_name: ${{ github.event.release.tag_name }}
           fail_on_unmatched_files: true
         env:
@@ -169,9 +153,9 @@ jobs:
       
       - name: Upload as workflow artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: hypr-dock-${{ steps.version.outputs.VERSION }}-arch-package
-          path: ${{ steps.find-pkg.outputs.pkg_path }}
-          if-no-files-found: warn
+          path: arch-package/${{ steps.build.outputs.pkg_name }}
+          if-no-files-found: error
           retention-days: 30

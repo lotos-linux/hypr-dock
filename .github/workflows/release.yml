@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       VERSION: ${{ steps.version.outputs.VERSION }}
+      VERSION_TAG: ${{ steps.version.outputs.VERSION_TAG }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -31,12 +32,14 @@ jobs:
             TAG="${{ github.event.release.tag_name }}"
             VERSION="${TAG#v}"
             echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+            echo "VERSION_TAG=$TAG" >> $GITHUB_OUTPUT
             echo "Using release version: $VERSION"
           else
             if [ "${{ github.event.inputs.use_existing_tag }}" == "true" ]; then
               LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
               VERSION="${LATEST_TAG#v}"
               echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+              echo "VERSION_TAG=$LATEST_TAG" >> $GITHUB_OUTPUT
               echo "Using latest tag: $VERSION"
               
               # Для отладки - показать все теги
@@ -45,6 +48,7 @@ jobs:
             else
               VERSION="$(date +%Y%m%d%H%M%S)"
               echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+              echo "VERSION_TAG=" >> $GITHUB_OUTPUT
               echo "WARNING: Using generated version without existing tag: $VERSION"
             fi
           fi
@@ -66,6 +70,7 @@ jobs:
       - name: Debug - show version from previous job
         run: |
           echo "Version from get-version job: ${{ needs.get-version.outputs.VERSION }}"
+          echo "Version tag from get-version job: ${{ needs.get-version.outputs.VERSION_TAG }}"
           echo "All tags in container:"
           git tag -l || echo "git tag failed"
           echo "Current commit: $(git rev-parse HEAD)"
@@ -187,12 +192,11 @@ jobs:
           fi
       
       - name: Attach package to release
-        if: github.event_name == 'release'
         uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
         with:
           files: arch-package/${{ steps.build.outputs.pkg_name }}
-          tag_name: ${{ github.event.release.tag_name }}
-          fail_on_unmatched_files: true
+          tag_name: ${{ github.event.release.tag_name || needs.get-version.outputs.VERSION_TAG }}
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       

@@ -15,14 +15,10 @@ permissions:
   contents: read
 
 jobs:
-  build-arch:
+  get-version:
     runs-on: ubuntu-latest
-    container:
-      image: archlinux:base-devel
-    timeout-minutes: 30
-    permissions:
-      contents: write  # Для загрузки в релиз
-    
+    outputs:
+      VERSION: ${{ steps.version.outputs.VERSION }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -42,12 +38,49 @@ jobs:
               VERSION="${LATEST_TAG#v}"
               echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
               echo "Using latest tag: $VERSION"
+              
+              # Для отладки - показать все теги
+              echo "Available tags:"
+              git tag -l
             else
               VERSION="$(date +%Y%m%d%H%M%S)"
               echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
               echo "WARNING: Using generated version without existing tag: $VERSION"
             fi
           fi
+
+  build-arch:
+    needs: get-version
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      
+      - name: Debug - show version from previous job
+        run: |
+          echo "Version from get-version job: ${{ needs.get-version.outputs.VERSION }}"
+          echo "All tags in container:"
+          git tag -l || echo "git tag failed"
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Describe: $(git describe --tags --abbrev=0 2>/dev/null || echo 'failed')"
+      
+      - name: Update system and install dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed \
+            go \
+            git \
+            base-devel \
+            pacman-contrib \
+            gtk3 \
+            gtk-layer-shell
       
       - name: Prepare PKGBUILD
         run: |
@@ -56,16 +89,14 @@ jobs:
           cat > arch-package/PKGBUILD << 'EOF'
           # Maintainer: GitHub Actions
           pkgname=hypr-dock
-          pkgver=${{ steps.version.outputs.VERSION }}
+          pkgver=${{ needs.get-version.outputs.VERSION }}
           pkgrel=1
           pkgdesc="Interactive Dock Panel for Hyprland"
           arch=('x86_64')
           url="https://github.com/${{ github.repository }}"
-          license=('GPL3')
+          license=('GPL-3.0-or-later')
           depends=('gtk3' 'gtk-layer-shell')
-          makedepends=('go' 'git' 'make')
-          provides=('hypr-dock' 'hypr-alttab')
-          conflicts=()
+          makedepends=('go' 'git' 'make' 'pkg-config')
           
           source=("hypr-dock.tar.gz::https://github.com/${{ github.repository }}/archive/refs/tags/v${pkgver}.tar.gz")
           
@@ -103,29 +134,42 @@ jobs:
           }
           EOF
           
-          echo "PKGBUILD created successfully:"
-          cat arch-package/PKGBUILD
-      
-      - name: Update system and install dependencies
-        run: |
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed go git base-devel pacman-contrib
+          echo "PKGBUILD created with version: ${{ needs.get-version.outputs.VERSION }}"
+          cat arch-package/PKGBUILD | grep pkgver
       
       - name: Build package
         id: build
         run: |
           cd arch-package
           
+          # Создаем пользователя для сборки
           useradd -m builder
           chown -R builder:builder .
           
+          # Все команды сборки от пользователя builder
           su builder -c "
+            # Обновляем контрольные суммы
+            echo 'Running updpkgsums...'
             updpkgsums
+          "
+          
+          # Проверяем, скачался ли исходник
+          echo "Contents after updpkgsums:"
+          ls -la
+          ls -la src/ 2>/dev/null || echo "src dir not yet"
+          
+          # Собираем пакет
+          su builder -c "
+            echo 'Running makepkg...'
             makepkg -s --noconfirm
           "
           
-          # Находим основной пакет (не debug)
-          PKG_FILE=$(ls *.pkg.tar.zst | grep -v debug | head -1)
+          # Проверяем результат
+          echo 'Build completed, searching for packages...'
+          ls -la *.pkg.tar.zst || ls -la
+          
+          # Находим основной пакет
+          PKG_FILE=$(ls *.pkg.tar.zst 2>/dev/null | grep -v debug | head -1)
           if [ -n "$PKG_FILE" ]; then
             echo "Found package: $PKG_FILE"
             echo "pkg_path=$(realpath $PKG_FILE)" >> $GITHUB_OUTPUT
@@ -135,7 +179,10 @@ jobs:
             file $PKG_FILE
           else
             echo "::error::No package file found!"
+            echo "Contents of arch-package:"
             ls -la
+            echo "Contents of src directory (if exists):"
+            ls -la src/ 2>/dev/null || true
             exit 1
           fi
       
@@ -153,7 +200,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: hypr-dock-${{ steps.version.outputs.VERSION }}-arch-package
+          name: hypr-dock-${{ needs.get-version.outputs.VERSION }}-arch-package
           path: arch-package/${{ steps.build.outputs.pkg_name }}
           if-no-files-found: error
           retention-days: 30

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"hypr-dock/pkg/ini"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type App struct {
@@ -42,6 +44,10 @@ func New(className string, lang ...string) (*App, error) {
 		raw:          make(map[string]map[string]string),
 
 		lang: locale,
+	}
+
+	if className == "" {
+		return errData, errors.New("className empty")
 	}
 
 	file := SearchDesktopFile(className)

@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"hypr-dock/pkg/ini"
 	"os"
 	"path/filepath"
 	"strings"
@@ -70,6 +71,42 @@ func SearchDesktopFile(className string) string {
 	path, exist := GetFiles()[className]
 	if exist {
 		return path
+	}
+
+	// Fallback: match by StartupWMClass field inside .desktop files
+	// Handles cases where the filename doesn't match the WM_CLASS,
+	// e.g. "beeper.desktop" with StartupWMClass=BeeperTexts
+	return searchByStartupWMClass(className)
+}
+
+func searchByStartupWMClass(className string) string {
+	for _, appDir := range GetAppDirs() {
+		files, err := os.ReadDir(appDir)
+		if err != nil {
+			continue
+		}
+
+		for _, file := range files {
+			if file.IsDir() || !strings.HasSuffix(file.Name(), ".desktop") {
+				continue
+			}
+
+			filePath := filepath.Join(appDir, file.Name())
+			raw, err := ini.GetMap(filePath, "Desktop Entry")
+			if err != nil {
+				continue
+			}
+
+			general, exist := raw["Desktop Entry"]
+			if !exist {
+				continue
+			}
+
+			wmClass, exist := general["StartupWMClass"]
+			if exist && wmClass == className {
+				return filePath
+			}
+		}
 	}
 
 	return ""

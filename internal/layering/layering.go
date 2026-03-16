@@ -91,7 +91,19 @@ func (c *Control) SetPosition() {
 
 	position := c.settings.Position
 
-	layershell.SetAnchor(c.window, edges[position], true)
+	layershell.SetAnchor(c.window, layershell.LAYER_SHELL_EDGE_TOP, false)
+	layershell.SetAnchor(c.window, layershell.LAYER_SHELL_EDGE_BOTTOM, false)
+	layershell.SetAnchor(c.window, layershell.LAYER_SHELL_EDGE_LEFT, false)
+	layershell.SetAnchor(c.window, layershell.LAYER_SHELL_EDGE_RIGHT, false)
+
+	if position == "top" || position == "bottom" {
+		layershell.SetAnchor(c.window, layershell.LAYER_SHELL_EDGE_LEFT, true)
+		layershell.SetAnchor(c.window, layershell.LAYER_SHELL_EDGE_RIGHT, true)
+		layershell.SetAnchor(c.window, edges[position], true)
+	} else {
+		layershell.SetAnchor(c.window, edges[position], true)
+	}
+
 	layershell.SetMargin(c.window, edges[position], 0)
 
 	c.orientation = oreintations[position]

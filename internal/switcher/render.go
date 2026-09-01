@@ -158,7 +158,7 @@ func (s *Switcher) createWindowWidget(idx int, mon ipc.Monitor, scale float64, f
 	overlay.Add(centerBox)
 
 	// 1. Render Icon
-	iconName := c.Class
+	iconName := resolveIconName(c.Class)
 	iconSize := scaledW / 2
 	if iconSize > 128 {
 		iconSize = 128
